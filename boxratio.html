@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phinix - Master Analytics</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --accent: #ffca28;
+            --master: #58a6ff;
+            --up: #2eb872;
+            --down: #fa5252;
+            --border: #30363d;
+        }
+
+        body { background: var(--bg); color: #c9d1d9; font-family: monospace; margin: 0; padding: 10px; padding-bottom: 90px; }
+        
+        .controls { background: var(--panel); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border); }
+        input { background: #000; border: 1px solid #444; color: #fff; padding: 8px; width: 60%; border-radius: 4px; outline: none; }
+        
+        /* Dynamic Tab Switcher */
+        .selector-box { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 8px; scrollbar-width: none; }
+        .selector-box::-webkit-scrollbar { display: none; }
+        
+        .tab-btn { 
+            padding: 10px 20px; background: var(--panel); border: 1px solid var(--border); 
+            color: #8b949e; font-weight: bold; border-radius: 6px; white-space: nowrap; cursor: pointer; transition: 0.2s;
+        }
+        .tab-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        .master-card { 
+            background: #05070a; border: 1px solid var(--master); 
+            padding: 12px; border-radius: 8px; margin-bottom: 25px; 
+        }
+        
+        .column-page { display: none; }
+        .column-page.active { display: block; }
+
+        .graph-container {
+            width: 100%; height: 160px; background: #0d1117; border: 1px solid #222;
+            position: relative; margin-bottom: 15px; overflow-x: auto; border-radius: 4px;
+        }
+
+        .data-grid { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+        .data-card {
+            min-width: 85px; background: var(--panel); border: 1px solid var(--border);
+            padding: 8px; text-align: center; border-radius: 4px; flex-shrink: 0;
+        }
+
+        .card-ratio { font-size: 13px; font-weight: bold; }
+        .card-diff { font-size: 10px; margin-top: 4px; padding: 2px; border-radius: 2px; font-weight: bold; }
+        .y-label { position: absolute; left: 5px; font-size: 9px; color: #444; pointer-events: none; z-index: 10; }
+        
+        svg { overflow: visible !important; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h3 style="margin: 0 0 10px 0; color:var(--accent); font-size: 14px;">PHINIX ANALYTICS ENGINE</h3>
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="ranges" value="20, 50" placeholder="Ranges (e.g. 20, 50)">
+            <button onclick="renderAll()" style="background:var(--accent); border:none; padding:5px 15px; font-weight:bold; border-radius:4px; cursor:pointer;">UPDATE</button>
+        </div>
+    </div>
+
+    <div class="selector-box" id="tabContainer"></div>
+    <div id="wrapper"></div>
+
+    <script>
+        // Reads exactly what the Home Page has saved
+        const masterData = JSON.parse(localStorage.getItem('phinix_col_data')) || []; 
+
+        let activeCol = 0;
+
+        function switchTab(idx) {
+            activeCol = idx;
+            renderAll();
+        }
+
+        function renderAll() {
+            const rangeList = document.getElementById('ranges').value.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+            const tabContainer = document.getElementById('tabContainer');
+            const wrapper = document.getElementById('wrapper');
+            
+            tabContainer.innerHTML = "";
+            wrapper.innerHTML = "";
+
+            // If no data exists at all
+            if (masterData.length === 0) {
+                tabContainer.innerHTML = '<span style="color:#444; font-size:12px;">Waiting for Home Page data...</span>';
+                return;
+            }
+
+            // Dynamically create a button for EVERY column found in the data
+            masterData.forEach((colData, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `tab-btn ${activeCol === idx ? 'active' : ''}`;
+                btn.innerText = `COL ${idx + 1}`;
+                btn.onclick = () => switchTab(idx);
+                tabContainer.appendChild(btn);
+
+                if (activeCol === idx) {
+                    const page = document.createElement('div');
+                    page.className = "column-page active";
+
+                    // Check if the specific column is empty
+                    if (!colData || colData.length === 0) {
+                        page.innerHTML = `
+                            <div style="text-align:center; padding:60px 20px; color:#444;">
+                                <div style="font-size:40px; margin-bottom:10px;">📊</div>
+                                <p style="font-size:12px;">Column ${idx + 1} is currently empty.</p>
+                            </div>`;
+                    } else {
+                        // Lifetime Trend Logic
+                        page.innerHTML += `<div class="master-card">
+                            <div style="color:var(--master); font-size:11px; margin-bottom:10px; font-weight:bold;">LIFETIME COLUMN TREND</div>
+                            ${generateMasterLineGraph(colData)}
+                        </div>`;
+
+                        // Multi-Range Analytics
+                        rangeList.forEach(range => {
+                            page.innerHTML += `<div style="color:var(--accent); font-size:11px; margin:20px 0 5px 0; border-left: 3px solid var(--accent); padding-left: 8px;">RANGE SET: ${range}</div>`;
+                            page.innerHTML += generateFullAnalysis(colData, range);
+                        });
+                    }
+                    wrapper.appendChild(page);
+                }
+            });
+        }
+
+        function generateMasterLineGraph(data) {
+            let cumulativeDiff = 0;
+            const points = data.map(val => {
+                cumulativeDiff += (val === "A" ? 1 : -1);
+                return cumulativeDiff;
+            });
+
+            const width = Math.max(window.innerWidth - 60, points.length * 4);
+            const height = 100;
+            const midY = height / 2;
+            const maxRange = Math.max(...points.map(Math.abs), 10);
+            const getY = (val) => midY - (val / maxRange) * (height / 2.2);
+
+            let pathD = `M 0 ${getY(0)}`;
+            points.forEach((p, i) => {
+                pathD += ` L ${(i+1) * (width/points.length)} ${getY(p)}`;
+            });
+
+            const finalDiff = points[points.length - 1];
+
+            return `
+                <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:5px;">
+                    <span>Start: 0</span>
+                    <span style="color:${finalDiff >= 0 ? 'var(--up)' : 'var(--down)'}">Final Gap: ${finalDiff > 0 ? '+' : ''}${finalDiff}</span>
+                </div>
+                <div class="graph-container" style="height:100px; border-color:var(--master); background:#000;">
+                    <svg width="${width}" height="100">
+                        <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="#222" stroke-width="1" />
+                        <path d="${pathD}" fill="none" stroke="var(--master)" stroke-width="1.5" />
+                    </svg>
+                </div>`;
+        }
+
+        function generateFullAnalysis(data, range) {
+            const stats = [];
+            for (let i = 0; i < data.length; i += range) {
+                const chunk = data.slice(i, i + range);
+                const a = chunk.filter(x => x === "A").length;
+                const b = chunk.filter(x => x === "B").length;
+                stats.push({ set: Math.floor(i/range)+1, a, b, diff: a - b });
+            }
+
+            const width = Math.max(window.innerWidth - 60, stats.length * 70);
+            const height = 150;
+            const midY = height / 2;
+            const xStep = width / Math.max(stats.length - 1, 1);
+            const getY = (val) => midY - (val / range) * (height / 2.8);
+
+            let pathD = `M 0 ${getY(stats[0].diff)}`;
+            let graphElements = "";
+            let cardsHtml = `<div class="data-grid">`;
+
+            stats.forEach((s, idx) => {
+                const x = idx * xStep;
+                const y = getY(s.diff);
+                if(idx > 0) pathD += ` L ${x} ${y}`;
+                
+                const pointColor = s.diff >= 0 ? 'var(--up)' : 'var(--down)';
+                const labelY = s.diff >= 0 ? y - 12 : y + 20;
+
+                graphElements += `
+                    <circle cx="${x}" cy="${y}" r="4" fill="${pointColor}" />
+                    <text x="${x}" y="${labelY}" fill="${pointColor}" font-size="11" font-weight="bold" text-anchor="middle">
+                        ${s.diff > 0 ? '+' : ''}${s.diff}
+                    </text>`;
+
+                cardsHtml += `
+                    <div class="data-card" style="border-top: 3px solid ${pointColor}">
+                        <div style="font-size:9px; color:#6e7681; margin-bottom:4px;">Set ${s.set}</div>
+                        <div class="card-ratio">${s.a}:${s.b}</div>
+                        <div class="card-diff" style="background:${s.diff >= 0 ? 'rgba(46,184,114,0.1)' : 'rgba(250,82,82,0.1)'}; color:${pointColor}">
+                            ${s.diff > 0 ? '+' : ''}${s.diff}
+                        </div>
+                    </div>`;
+            });
+            cardsHtml += `</div>`;
+
+            return `
+                <div class="graph-container">
+                    <div class="y-label" style="top:5px;">+${range}</div>
+                    <div class="y-label" style="top:47%;">0</div>
+                    <div class="y-label" style="bottom:5px;">-${range}</div>
+                    <svg width="${width}" height="${height}">
+                        <line x1="0" y1="${midY}" x2="${width}" y2="${midY}" stroke="#333" stroke-dasharray="5" />
+                        <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" />
+                        ${graphElements}
+                    </svg>
+                </div>
+                ${cardsHtml}`;
+        }
+
+        renderAll();
+    </script>
+
+    <script src="nav.js"></script>
+</body>
+</html>

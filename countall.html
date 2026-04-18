@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phinix - All ptn Dashboard</title>
+    <style>
+        :root {
+            --bg: #05070a; 
+            --panel: #0d1117; 
+            --accent: #ffca28;
+            --up: #2eb872; 
+            --down: #fa5252; 
+            --border: #30363d;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: #c9d1d9; 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            padding: 10px; 
+            overflow-x: hidden; 
+        }
+
+        /* HEADER & TABS */
+        .header { 
+            position: sticky; 
+            top: 0; 
+            background: var(--panel); 
+            z-index: 100; 
+            border-bottom: 2px solid var(--border); 
+            margin: -10px -10px 15px -10px; 
+            padding: 15px; 
+        }
+
+        .col-bar { 
+            display: flex; 
+            gap: 8px; 
+            margin-top: 12px; 
+            overflow-x: auto; 
+            padding-bottom: 5px; 
+        }
+
+        .col-btn { 
+            flex: 1; 
+            min-width: 80px; 
+            background: #21262d; 
+            border: 1px solid var(--border); 
+            color: #8b949e; 
+            padding: 12px; 
+            border-radius: 6px; 
+            font-size: 11px; 
+            font-weight: bold; 
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .col-btn.active { 
+            border-color: var(--accent); 
+            color: var(--accent); 
+            background: #161b22; 
+        }
+
+        /* MULTI-PLAN BOX */
+        .box { 
+            background: var(--panel); 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 25px; 
+            transition: all 0.3s ease; 
+        }
+
+        .box.active-bet { 
+            border-color: var(--accent); 
+            box-shadow: 0 0 20px rgba(255, 202, 40, 0.15); 
+        }
+        
+        .strat-name { 
+            color: var(--accent); 
+            font-weight: bold; 
+            font-size: 16px; 
+            text-transform: uppercase; 
+            margin-bottom: 12px; 
+            display: block; 
+            letter-spacing: 1px;
+        }
+
+        .signal-banner { 
+            background: rgba(255, 202, 40, 0.08); 
+            color: var(--accent); 
+            text-align: center; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            font-size: 14px; 
+            border: 1px dashed rgba(255, 202, 40, 0.4); 
+            min-height: 20px;
+        }
+
+        /* PLAN ROW */
+        .plan-row { 
+            margin-top: 25px; 
+            border-top: 1px solid #222; 
+            padding-top: 20px; 
+        }
+
+        .plan-head { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 8px; 
+        }
+
+        .plan-name { 
+            font-size: 10px; 
+            color: #8b949e; 
+            background: #21262d; 
+            padding: 3px 8px; 
+            border-radius: 4px; 
+            text-transform: uppercase;
+        }
+
+        .plan-pts { 
+            font-size: 22px; 
+            font-weight: bold; 
+        }
+
+        /* GRAPH & STATS */
+        .graph-wrap { 
+            width: 100%; 
+            height: 80px; 
+            background: #000; 
+            border-radius: 8px; 
+            margin: 12px 0; 
+            position: relative; 
+            border: 1px solid #222; 
+            overflow: hidden;
+        }
+
+        .zero-line { 
+            position: absolute; 
+            top: 50%; 
+            left: 0; 
+            width: 100%; 
+            height: 1px; 
+            background: #333; 
+            z-index: 1; 
+        }
+
+        svg { 
+            width: 100%; 
+            height: 100%; 
+            position: relative; 
+            z-index: 2; 
+        }
+        
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 15px; 
+            font-size: 11px; 
+            color: #8b949e; 
+            margin-top: 5px;
+        }
+
+        .stat-label {
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .stat-val { 
+            color: #fff; 
+            font-weight: bold; 
+            font-size: 13px; 
+            display: block; 
+        }
+
+        #container { 
+            margin-top: 15px; 
+        }
+
+        #statusDot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--up);
+            box-shadow: 0 0 5px var(--up);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b id="pageTitle" style="letter-spacing:3px; color: var(--accent); font-size: 18px;">DASHBOARD</b>
+            <div id="statusDot"></div>
+        </div>
+        <div class="col-bar" id="colBar"></div>
+    </div>
+
+    <div id="container"></div>
+
+<script>
+    // --- CATEGORY CONFIGURATION ---
+    const CATEGORY_NAME = "All ptn"; 
+    let currentCol = 1;
+
+    function init() {
+        document.getElementById('pageTitle').innerText = CATEGORY_NAME.toUpperCase();
+        
+        let barHtml = "";
+        for(let i = 1; i <= 7; i++) {
+            let activeClass = (i === currentCol) ? 'active' : '';
+            barHtml += `<button class="col-btn ${activeClass}" onclick="setCol(${i})" id="btn${i}">COLUMN ${i}</button>`;
+        }
+        document.getElementById('colBar').innerHTML = barHtml;
+
+        refreshDashboard();
+
+        window.addEventListener('storage', function(event) {
+            if (event.key === 'phinix_stream' || event.key === 'phinix_v2') {
+                refreshDashboard();
+            }
+        });
+    }
+
+    function setCol(columnNumber) {
+        currentCol = columnNumber;
+        const buttons = document.querySelectorAll('.col-btn');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn' + columnNumber).classList.add('active');
+        refreshDashboard();
+    }
+
+    // --- MAIN ENGINE ---
+    function refreshDashboard() {
+        const allStrategies = JSON.parse(localStorage.getItem('phinix_v2')) || [];
+        const filteredStrats = allStrategies.filter(s => s.cat === CATEGORY_NAME);
+
+        const allStreams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
+        const activeStream = allStreams[currentCol] || "";
+        const dataChars = activeStream.split('');
+
+        const container = document.getElementById('container');
+
+        if (filteredStrats.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:60px; color:#444; font-style:italic;">No strategies found in ${CATEGORY_NAME}</div>`;
+            return;
+        }
+
+        container.innerHTML = filteredStrats.map(function(strat) {
+            let matchLog = []; 
+            let currentState = "IDLE"; 
+            let activePattern = null;
+            let currentStep = 0;
+            let historyLog = "";
+
+            dataChars.forEach(function(char) {
+                historyLog += char;
+
+                if (currentState === "BETTING") {
+                    if (char === activePattern.p[currentStep]) {
+                        currentStep++;
+                        if (currentStep >= activePattern.p.length) {
+                            matchLog.push({ type: 'W', stepsReached: activePattern.p.length });
+                            currentState = "IDLE";
+                        }
+                    } else {
+                        matchLog.push({ type: 'B', stepsReached: currentStep + 1 });
+                        currentState = "IDLE";
+                    }
+                } 
+                else if (currentState === "LOCKED") {
+                    if (char === activePattern.p[currentStep]) {
+                        currentStep++;
+                        if (currentStep >= activePattern.p.length) {
+                            currentState = "IDLE";
+                        }
+                    } else {
+                        currentState = "IDLE"; 
+                    }
+                } 
+                else {
+                    strat.negQ.forEach(function(neg) {
+                        if (historyLog.endsWith(neg.t)) {
+                            currentState = "LOCKED";
+                            activePattern = neg;
+                            currentStep = 0;
+                        }
+                    });
+
+                    if (currentState === "IDLE") {
+                        strat.hunterQ.forEach(function(hunt) {
+                            if (historyLog.endsWith(hunt.t)) {
+                                currentState = "BETTING";
+                                activePattern = hunt;
+                                currentStep = 0;
+                            }
+                        });
+                    }
+                }
+            });
+
+            let signalText = "SCANNING STREAM...";
+            if (currentState === "BETTING") {
+                signalText = `NEXT BET: <span style="font-size:20px; color:#fff;">${activePattern.p[currentStep]}</span>`;
+            } else if (currentState === "LOCKED") {
+                signalText = "🛡️ SHIELD ACTIVE (LOCKED)";
+            }
+
+            return renderBoxUI(strat, matchLog, signalText, currentState);
+        }).join('');
+    }
+
+    // --- UI GENERATOR ---
+    function renderBoxUI(strat, matchLog, signal, state) {
+        const planHTML = strat.plans.map(function(planString) {
+            const planValues = planString.split(',').map(Number);
+            let totalPoints = 0;
+            let winCount = 0;
+            let breakCount = 0;
+            let pointHistory = [0];
+
+            matchLog.forEach(function(m) {
+                let amountAtStake = 0;
+                for (let i = 0; i < m.stepsReached; i++) {
+                    amountAtStake += (planValues[i] || planValues[planValues.length - 1]);
+                }
+
+                if (m.type === 'W') {
+                    totalPoints += (planValues[m.stepsReached - 1] || planValues[planValues.length - 1]);
+                    winCount++;
+                } else {
+                    totalPoints -= amountAtStake;
+                    breakCount++;
+                }
+                pointHistory.push(totalPoints);
+            });
+
+            const svgPath = generateSVGLine(pointHistory);
+            const pointColor = (totalPoints >= 0) ? 'var(--up)' : 'var(--down)';
+            const peakValue = Math.max(...pointHistory);
+
+            return `
+                <div class="plan-row">
+                    <div class="plan-head">
+                        <span class="plan-name">PLAN: ${planString}</span>
+                        <span class="plan-pts" style="color:${pointColor}">${totalPoints >= 0 ? '+' : ''}${totalPoints}</span>
+                    </div>
+                    <div class="graph-wrap">
+                        <div class="zero-line"></div>
+                        <svg viewBox="0 0 100 80" preserveAspectRatio="none">
+                            <polyline points="${svgPath}" fill="none" stroke="${pointColor}" stroke-width="2.5" vector-effect="non-scaling-stroke" />
+                        </svg>
+                    </div>
+                    <div class="stats-grid">
+                        <div><span class="stat-label">WINS</span><span class="stat-val">${winCount}</span></div>
+                        <div><span class="stat-label">BREAKS</span><span class="stat-val">${breakCount}</span></div>
+                        <div><span class="stat-label">PEAK</span><span class="stat-val">${peakValue}</span></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const activeClass = (state === 'BETTING') ? 'active-bet' : '';
+
+        return `
+            <div class="box ${activeClass}">
+                <span class="strat-name">${strat.name}</span>
+                <div class="signal-banner">${signal}</div>
+                ${planHTML}
+            </div>
+        `;
+    }
+
+    function generateSVGLine(points) {
+        if (points.length < 2) return "0,40 100,40";
+        const absoluteMax = Math.max(...points.map(Math.abs), 5); 
+        const stepX = 100 / (points.length - 1);
+        return points.map((val, index) => {
+            const x = index * stepX;
+            const y = 40 - (val * (35 / absoluteMax));
+            return `${x},${y}`;
+        }).join(' ');
+    }
+
+    init();
+</script>
+ <script src="nav.js"></script>
+</body>
+</html>

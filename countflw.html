@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phinix - Long Flow</title>
+    <style>
+        :root {
+            --bg: #05070a; --panel: #0d1117; --accent: #ffca28;
+            --up: #2eb872; --down: #fa5252; --border: #30363d;
+        }
+        body { background: var(--bg); color: #c9d1d9; font-family: monospace; margin: 0; padding: 10px; overflow-x: hidden; }
+
+        /* HEADER & TABS */
+        .header { position: sticky; top: 0; background: var(--panel); z-index: 100; border-bottom: 2px solid var(--border); margin: -10px -10px 15px -10px; padding: 10px; }
+        .col-bar { display: flex; gap: 5px; margin-top: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .col-btn { flex: 1; min-width: 75px; background: #21262d; border: 1px solid var(--border); color: #8b949e; padding: 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .col-btn.active { border-color: var(--accent); color: var(--accent); background: #161b22; }
+
+        /* MULTI-PLAN BOX */
+        .box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 20px; transition: 0.3s; }
+        .box.active-bet { border-color: var(--accent); box-shadow: 0 0 15px rgba(255, 202, 40, 0.1); }
+        
+        .strat-name { color: var(--accent); font-weight: bold; font-size: 15px; text-transform: uppercase; margin-bottom: 10px; display: block; }
+        .signal-banner { background: rgba(255, 202, 40, 0.1); color: var(--accent); text-align: center; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 13px; border: 1px dashed rgba(255, 202, 40, 0.3); min-height: 18px; }
+
+        /* PLAN ROW */
+        .plan-row { margin-top: 20px; border-top: 1px solid #222; padding-top: 15px; }
+        .plan-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .plan-name { font-size: 10px; color: #8b949e; background: #21262d; padding: 2px 6px; border-radius: 3px; }
+        .plan-pts { font-size: 20px; font-weight: bold; font-family: 'Courier New', monospace; }
+
+        /* GRAPH & STATS */
+        .graph-wrap { width: 100%; height: 70px; background: #000; border-radius: 6px; margin: 8px 0; position: relative; border: 1px solid #222; }
+        .zero-line { position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: #333; z-index: 1; }
+        svg { width: 100%; height: 100%; position: relative; z-index: 2; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 10px; color: #8b949e; }
+        .stat-val { color: #fff; font-weight: bold; font-size: 12px; display: block; }
+
+        #container { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b id="pageTitle" style="letter-spacing:2px; color: var(--accent);">DASHBOARD</b>
+            <div id="statusDot" style="width:8px; height:8px; border-radius:50%; background:var(--up);"></div>
+        </div>
+        <div class="col-bar" id="colBar"></div>
+    </div>
+    <div id="container"></div>
+
+<script>
+    // --- CATEGORY CONFIGURATION ---
+    const CATEGORY_NAME = "Long Flow"; 
+    let currentCol = 1;
+
+    function init() {
+        document.getElementById('pageTitle').innerText = CATEGORY_NAME.toUpperCase();
+        
+        let bar = "";
+        for(let i=1; i<=7; i++) {
+            bar += `<button class="col-btn ${i===currentCol?'active':''}" onclick="setCol(${i})" id="btn${i}">COL ${i}</button>`;
+        }
+        document.getElementById('colBar').innerHTML = bar;
+
+        refresh();
+
+        window.addEventListener('storage', (e) => {
+            if(e.key === 'phinix_stream' || e.key === 'phinix_v2') refresh();
+        });
+    }
+
+    function setCol(n) {
+        currentCol = n;
+        document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn'+n).classList.add('active');
+        refresh();
+    }
+
+    function refresh() {
+        const rawStrategies = JSON.parse(localStorage.getItem('phinix_v2')) || [];
+        const strategies = rawStrategies.filter(s => s.cat === CATEGORY_NAME);
+        const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
+        const dataStr = streams[currentCol] || "";
+        const dataArr = dataStr.split('');
+
+        const container = document.getElementById('container');
+        if (strategies.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:50px; color:#444;">No patterns saved in ${CATEGORY_NAME}</div>`;
+            return;
+        }
+
+        container.innerHTML = strategies.map(strat => {
+            let matchLog = []; 
+            let state = "IDLE"; 
+            let activePat = null;
+            let step = 0;
+            let streamLog = "";
+
+            dataArr.forEach(char => {
+                streamLog += char;
+                if (state === "BETTING") {
+                    if (char === activePat.p[step]) {
+                        step++;
+                        if (step >= activePat.p.length) {
+                            matchLog.push({type: 'W', stepsReached: activePat.p.length});
+                            state = "IDLE";
+                        }
+                    } else {
+                        matchLog.push({type: 'B', stepsReached: step + 1});
+                        state = "IDLE";
+                    }
+                } 
+                else if (state === "LOCKED") {
+                    if (char === activePat.p[step]) {
+                        step++; if (step >= activePat.p.length) state = "IDLE";
+                    } else { state = "IDLE"; }
+                } 
+                else {
+                    strat.negQ.forEach(neg => { if (streamLog.endsWith(neg.t)) { state = "LOCKED"; activePat = neg; step = 0; }});
+                    if (state === "IDLE") {
+                        strat.hunterQ.forEach(hunt => { if (streamLog.endsWith(hunt.t)) { state = "BETTING"; activePat = hunt; step = 0; }});
+                    }
+                }
+            });
+
+            let signal = "SCANNING...";
+            if (state === "BETTING") signal = `NEXT BET: <span style="font-size:18px;">${activePat.p[step]}</span>`;
+            else if (state === "LOCKED") signal = "🛡️ NEGATIVE LOCKDOWN";
+
+            return renderStrategyBox(strat, matchLog, signal, state);
+        }).join('');
+    }
+
+    function renderStrategyBox(strat, matchLog, signal, state) {
+        const planSections = strat.plans.map(planStr => {
+            const planArr = planStr.split(',').map(Number);
+            let pts = 0, wins = 0, breaks = 0, history = [0];
+
+            matchLog.forEach(m => {
+                let totalStaked = 0;
+                for (let i = 0; i < m.stepsReached; i++) {
+                    totalStaked += (planArr[i] || planArr[planArr.length - 1]);
+                }
+                if (m.type === 'W') {
+                    pts += (planArr[m.stepsReached - 1] || planArr[planArr.length - 1]);
+                    wins++;
+                } else {
+                    pts -= totalStaked;
+                    breaks++;
+                }
+                history.push(pts);
+            });
+
+            const path = generatePath(history);
+            const color = pts >= 0 ? 'var(--up)' : 'var(--down)';
+            const peak = Math.max(...history);
+
+            return `
+                <div class="plan-row">
+                    <div class="plan-head">
+                        <span class="plan-name">PLAN: ${planStr}</span>
+                        <span class="plan-pts" style="color:${color}">${pts >= 0 ? '+' : ''}${pts}</span>
+                    </div>
+                    <div class="graph-wrap">
+                        <div class="zero-line"></div>
+                        <svg viewBox="0 0 100 80" preserveAspectRatio="none">
+                            <polyline points="${path}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        </svg>
+                    </div>
+                    <div class="stats-grid">
+                        <div>WINS <span class="stat-val">${wins}</span></div>
+                        <div>BREAKS <span class="stat-val">${breaks}</span></div>
+                        <div>PEAK <span class="stat-val">${peak}</span></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="box ${state === 'BETTING' ? 'active-bet' : ''}">
+                <span class="strat-name">${strat.name}</span>
+                <div class="signal-banner">${signal}</div>
+                ${planSections}
+            </div>
+        `;
+    }
+
+    function generatePath(history) {
+        if (history.length < 2) return "0,40 100,40";
+        const maxVal = Math.max(...history.map(Math.abs), 5); 
+        const dx = 100 / (history.length - 1);
+        return history.map((v, i) => `${i * dx},${40 - (v * (35 / maxVal))}`).join(' ');
+    }
+
+    init();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

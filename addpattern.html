@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phinix Master Factory</title>
+    <style>
+        :root {
+            --bg: #0d1117; --panel: #161b22; --accent: #ffca28;
+            --up: #2eb872; --down: #fa5252; --border: #30363d;
+        }
+        body { background: var(--bg); color: #c9d1d9; font-family: monospace; margin: 0; padding: 10px; padding-top: 65px; overflow-x: hidden; }
+        
+        /* FIXED HEADER */
+        .header { position: fixed; top: 0; left: 0; width: 100%; height: 55px; background: var(--panel); border-bottom: 2px solid var(--border); display: flex; align-items: center; padding: 0 15px; z-index: 5000; box-sizing: border-box; }
+        .menu-btn { font-size: 32px; color: var(--accent); cursor: pointer; line-height: 1; padding: 5px; }
+
+        /* SIDE MENU - MOBILE OPTIMIZED */
+        .side-menu { position: fixed; top: 0; left: 0; width: 85%; height: 100%; background: #1c2128; z-index: 7000; transform: translateX(-105%); transition: transform 0.3s ease-out; padding: 20px; overflow-y: auto; box-sizing: border-box; box-shadow: 10px 0 20px rgba(0,0,0,0.5); }
+        .side-menu.open { transform: translateX(0); }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 6000; display: none; }
+
+        /* CARDS & INPUTS */
+        .card { background: var(--panel); border: 1px solid var(--border); padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .label { font-size: 11px; color: #8b949e; margin-bottom: 8px; display: block; text-transform: uppercase; font-weight: bold; }
+        
+        input, select { width: 100%; box-sizing: border-box; background: #000; border: 1px solid #444; color: #fff; padding: 14px; border-radius: 8px; margin-bottom: 12px; font-size: 16px; outline: none; }
+        
+        .btn-add { background: #30363d; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; margin-bottom: 5px; cursor: pointer; }
+        .save-btn { background: var(--accent); color: #000; width: 100%; padding: 20px; border: none; border-radius: 12px; font-weight: bold; font-size: 18px; margin-top: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+        /* CATEGORY GROUPING IN MENU */
+        .menu-cat-header { color: var(--accent); font-size: 14px; font-weight: bold; margin: 20px 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 5px; text-transform: uppercase; }
+        .menu-item { background: #0d1117; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 5px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .del-x { color: var(--down); font-weight: bold; background: rgba(250, 82, 82, 0.1); padding: 5px 10px; border-radius: 5px; font-size: 12px; }
+        
+        .badge-row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+        .view-link { color: var(--accent); font-size: 13px; text-decoration: underline; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="menu-btn" onclick="toggleMenu()">☰</div>
+        <div style="font-weight:bold; letter-spacing:1px; margin-left: 15px; font-size: 18px;">PHINIX FACTORY</div>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+    <div class="side-menu" id="sideMenu">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <h2 style="color:#fff; margin:0; font-size: 20px;">LIBRARY</h2>
+            <div onclick="toggleMenu()" style="font-size:35px; color:var(--accent); cursor:pointer;">×</div>
+        </div>
+        <div id="savedList"></div>
+    </div>
+
+    <div class="card">
+        <span class="label">Fixed Category</span>
+        <select id="boxCat">
+            <option value="Short Pattern">Short Pattern</option>
+            <option value="Long Flow">Long Flow</option>
+            <option value="Copycat">Copycat</option>
+            <option value="Spot">Spot</option>
+            <option value="All ptn">All ptn</option>
+        </select>
+
+        <span class="label">Betting Plans (Persistent)</span>
+        <div id="betPlansContainer">
+            <input type="text" class="bet-plan-input" value="1,1,1">
+        </div>
+        <button class="btn-add" onclick="addBetField()">+ ADD ANOTHER PLAN</button>
+    </div>
+
+    <div class="card" style="border-top: 4px solid var(--up);">
+        <span class="label" style="color:var(--up)">🎯 Hunter Patterns</span>
+        <input type="text" id="hTrig" placeholder="TRIGGER (A/B)" oninput="filterAB(this)">
+        <input type="text" id="hPat" placeholder="PATTERN (A/B)" oninput="filterAB(this)">
+        <button class="btn-add" onclick="pushToQueue('hunter')" style="color:var(--up); border-color: var(--up);">+ ADD TO QUEUE</button>
+        <div class="badge-row">
+            <span id="hCount">Added: 0</span>
+            <span class="view-link" onclick="viewQueue('hunter')">View Patterns</span>
+        </div>
+    </div>
+
+    <div class="card" style="border-top: 4px solid var(--down);">
+        <span class="label" style="color:var(--down)">🛡️ Negative Lockdown</span>
+        <input type="text" id="nTrig" placeholder="NEG TRIGGER (A/B)" oninput="filterAB(this)">
+        <input type="text" id="nPat" placeholder="NEG PATTERN (A/B)" oninput="filterAB(this)">
+        <button class="btn-add" onclick="pushToQueue('neg')" style="color:var(--down); border-color: var(--down);">+ ADD TO SHIELD</button>
+        <div class="badge-row">
+            <span id="nCount">Avoids: 0</span>
+            <span class="view-link" onclick="viewQueue('neg')">View Avoids</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <span class="label">Strategy Name</span>
+        <input type="text" id="boxName" placeholder="e.g. Sniper V1" style="text-transform:none;">
+        <button class="save-btn" onclick="saveBox()">SAVE COMPLETE BOX</button>
+    </div>
+
+    <script>
+        let hunterQ = [];
+        let negQ = [];
+        let editId = null;
+
+        function filterAB(el) {
+            el.value = el.value.replace(/[^abAB]/g, '').toUpperCase();
+        }
+
+        function toggleMenu() {
+            const m = document.getElementById('sideMenu');
+            const o = document.getElementById('overlay');
+            if (m.classList.contains('open')) {
+                m.classList.remove('open');
+                o.style.display = 'none';
+            } else {
+                renderSaved(); 
+                m.classList.add('open');
+                o.style.display = 'block';
+            }
+        }
+
+        function addBetField(val = "1,1,1") {
+            const inp = document.createElement('input');
+            inp.className = "bet-plan-input";
+            inp.value = val;
+            inp.style.textTransform = "none";
+            document.getElementById('betPlansContainer').appendChild(inp);
+        }
+
+        function pushToQueue(type) {
+            const t = document.getElementById(type === 'hunter' ? 'hTrig' : 'nTrig').value;
+            const p = document.getElementById(type === 'hunter' ? 'hPat' : 'nPat').value;
+            if(!t || !p) return alert("Fill A/B fields");
+            if(type === 'hunter') hunterQ.push({t, p}); else negQ.push({t, p});
+            updateUI();
+            document.getElementById(type === 'hunter' ? 'hTrig' : 'nTrig').value = "";
+            document.getElementById(type === 'hunter' ? 'hPat' : 'nPat').value = "";
+        }
+
+        function updateUI() {
+            document.getElementById('hCount').innerText = "Added: " + hunterQ.length;
+            document.getElementById('nCount').innerText = "Avoids: " + negQ.length;
+        }
+
+        function viewQueue(type) {
+            const q = type === 'hunter' ? hunterQ : negQ;
+            if(q.length === 0) return alert("Queue is empty");
+            alert(q.map((x,i) => `${i+1}. ${x.t} -> ${x.p}`).join('\n'));
+        }
+
+        function saveBox() {
+            const name = document.getElementById('boxName').value;
+            const cat = document.getElementById('boxCat').value;
+            const plans = Array.from(document.querySelectorAll('.bet-plan-input')).map(i => i.value);
+            if(!name || hunterQ.length === 0) return alert("Enter Name and Hunter Pattern");
+
+            const box = {
+                id: editId || Date.now(),
+                name, cat, plans, hunterQ, negQ,
+                stats: { col1:{p:0, h:[0], w:0, b:0}, col2:{p:0, h:[0], w:0, b:0}, col3:{p:0, h:[0], w:0, b:0} }
+            };
+
+            let all = JSON.parse(localStorage.getItem('phinix_v2')) || [];
+            if(editId) all = all.filter(b => b.id !== editId);
+            all.push(box);
+            localStorage.setItem('phinix_v2', JSON.stringify(all));
+            alert("Strategy Saved!");
+            hunterQ = []; negQ = [];
+            document.getElementById('boxName').value = "";
+            updateUI();
+            editId = null;
+        }
+
+        function renderSaved() {
+            const list = document.getElementById('savedList');
+            const all = JSON.parse(localStorage.getItem('phinix_v2')) || [];
+            if (all.length === 0) {
+                list.innerHTML = `<div style="text-align:center; color:#555; margin-top:20px;">Library Empty</div>`;
+                return;
+            }
+
+            // Grouping Logic - Updated with Spot and All ptn
+            const categories = ["Short Pattern", "Long Flow", "Copycat", "Spot", "All ptn"];
+            let html = "";
+
+            categories.forEach(cat => {
+                const items = all.filter(b => b.cat === cat);
+                if (items.length > 0) {
+                    html += `<div class="menu-cat-header">${cat}</div>`;
+                    items.forEach(b => {
+                        html += `
+                        <div class="menu-item">
+                            <div onclick="loadBox(${b.id})" style="flex-grow:1; cursor:pointer;">
+                                <b style="color:#fff;">${b.name}</b>
+                            </div>
+                            <div class="del-x" onclick="deleteBox(${b.id})">DEL</div>
+                        </div>`;
+                    });
+                }
+            });
+            list.innerHTML = html;
+        }
+
+        function loadBox(id) {
+            const all = JSON.parse(localStorage.getItem('phinix_v2')) || [];
+            const b = all.find(x => x.id === id);
+            editId = b.id;
+            document.getElementById('boxName').value = b.name;
+            document.getElementById('boxCat').value = b.cat;
+            document.getElementById('betPlansContainer').innerHTML = "";
+            b.plans.forEach(p => addBetField(p));
+            hunterQ = [...b.hunterQ];
+            negQ = [...b.negQ];
+            updateUI();
+            toggleMenu();
+        }
+
+        function deleteBox(id) {
+            if(!confirm("Delete?")) return;
+            let all = JSON.parse(localStorage.getItem('phinix_v2')) || [];
+            all = all.filter(b => b.id !== id);
+            localStorage.setItem('phinix_v2', JSON.stringify(all));
+            renderSaved();
+        }
+    </script>
+    <script src="nav.js"></script>
+</body>
+</html>

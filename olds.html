@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phinix - 10-Lag Analyzer</title>
+    <style>
+        :root {
+            --bg: #050508; --panel: #0d1117; --accent: #ffca28;
+            --match: #2eb872; --miss: #fa5252; --border: #1c2128;
+        }
+        body { background: var(--bg); color: #c9d1d9; font-family: 'Courier New', monospace; margin: 0; padding: 10px; overflow-x: hidden; }
+        
+        .header { position: sticky; top: 0; background: var(--panel); z-index: 1000; border-bottom: 2px solid var(--border); margin: -10px -10px 10px -10px; padding: 10px 15px; }
+        .col-bar { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 8px; }
+        .col-btn { flex: 1; min-width: 65px; background: #161b22; border: 1px solid var(--border); color: #8b949e; padding: 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .col-btn.active { border-color: var(--accent); color: var(--accent); }
+
+        /* MATRIX LAYOUT - Optimized for 10 columns */
+        .matrix-wrapper { display: flex; gap: 2px; overflow-x: auto; padding-bottom: 120px; }
+        .rel-col { flex: 1; min-width: 42px; display: flex; flex-direction: column; background: rgba(255,255,255,0.02); border-right: 1px solid #111; }
+        
+        .lag-input-box { background: #000; border-bottom: 1px solid var(--border); padding: 5px; position: sticky; top: 0; z-index: 10; }
+        .lag-input { width: 100%; background: transparent; border: none; color: var(--accent); text-align: center; font-size: 13px; font-weight: bold; outline: none; }
+        
+        .cell { width: 100%; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border-bottom: 1px solid #050508; }
+        .m { color: var(--match); background: rgba(46, 184, 114, 0.1); }
+        .x { color: var(--miss); background: rgba(250, 82, 82, 0.1); }
+        
+        /* BOTTOM SIGNAL PANEL */
+        .signal-footer { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--panel); border-top: 2px solid var(--border); display: flex; overflow-x: auto; gap: 2px; padding: 8px 0; z-index: 2000; }
+        .sig-box { flex: 1; min-width: 42px; text-align: center; border-right: 1px solid #1c2128; }
+        .sig-val { font-size: 14px; font-weight: bold; display: block; margin: 2px 0; }
+        .sig-label { font-size: 8px; color: #555; text-transform: uppercase; display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div style="font-weight:bold; letter-spacing:2px; color:var(--accent); font-size:12px; margin-bottom:8px;">10-LAG DYNAMIC ANALYZER</div>
+        <div class="col-bar" id="colBar"></div>
+    </div>
+
+    <div class="matrix-wrapper" id="matrix"></div>
+    <div class="signal-footer" id="signalFooter"></div>
+
+<script>
+    let currentCol = 1;
+    // Updated to exactly 10 default lags
+    let lags = [1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
+
+    function init() {
+        let barHtml = "";
+        for(let i = 1; i <= 7; i++) {
+            barHtml += `<button class="col-btn ${i === currentCol ? 'active' : ''}" onclick="setCol(${i})" id="btn${i}">STRM ${i}</button>`;
+        }
+        document.getElementById('colBar').innerHTML = barHtml;
+        
+        renderMatrix();
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'phinix_stream') renderMatrix();
+        });
+    }
+
+    function setCol(n) {
+        currentCol = n;
+        document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn'+n).classList.add('active');
+        renderMatrix();
+    }
+
+    function updateLag(index, val) {
+        lags[index] = parseInt(val) || 1;
+        renderMatrix();
+    }
+
+    function renderMatrix() {
+        const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
+        const data = (streams[currentCol] || "").split('');
+        const matrixContainer = document.getElementById('matrix');
+        const footerContainer = document.getElementById('signalFooter');
+        
+        let html = "";
+        let footerHtml = "";
+
+        // Loop limited to 10
+        for (let j = 0; j < 10; j++) {
+            const currentLag = lags[j];
+            let colHtml = `<div class="rel-col">
+                <div class="lag-input-box">
+                    <input type="number" class="lag-input" value="${currentLag}" onchange="updateLag(${j}, this.value)">
+                </div>`;
+            
+            let lastResult = "";
+
+            for (let i = currentLag; i < data.length; i++) {
+                const isMatch = data[i] === data[i - currentLag];
+                lastResult = isMatch ? 'A' : 'B'; 
+                colHtml += `<div class="cell ${isMatch ? 'm' : 'x'}">${lastResult}</div>`;
+            }
+
+            colHtml += `</div>`;
+            html += colHtml;
+
+            let nextMatchChar = "?";
+            if (data.length >= currentLag) {
+                nextMatchChar = data[data.length - currentLag];
+            }
+            
+            footerHtml += `
+                <div class="sig-box">
+                    <span class="sig-label">L${currentLag}</span>
+                    <span class="sig-val" style="color:var(--accent)">${nextMatchChar}</span>
+                    <span style="font-size:6px; color:#444;">MATCH</span>
+                </div>`;
+        }
+        
+        matrixContainer.innerHTML = html;
+        footerContainer.innerHTML = footerHtml;
+        
+        // Auto-scroll to latest
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    init();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

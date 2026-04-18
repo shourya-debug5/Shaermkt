@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phinix Dashboard</title>
+    <style>
+        :root {
+            --bg: #05070a; --panel: #0d1117; --accent: #ffca28;
+            --up: #2eb872; --down: #fa5252; --border: #30363d;
+        }
+        body { background: var(--bg); color: #c9d1d9; font-family: monospace; margin: 0; padding: 10px; overflow-x: hidden; }
+
+        /* HEADER & COLUMN SELECTOR */
+        .header { position: sticky; top: 0; background: var(--panel); z-index: 100; border-bottom: 2px solid var(--border); margin: -10px -10px 15px -10px; padding: 10px; }
+        .col-bar { display: flex; gap: 5px; margin-top: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .col-btn { flex: 1; min-width: 60px; background: #21262d; border: 1px solid var(--border); color: #8b949e; padding: 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .col-btn.active { border-color: var(--accent); color: var(--accent); background: #161b22; }
+
+        /* COUNTER BOX */
+        .box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 15px; position: relative; }
+        .box-title { font-weight: bold; color: var(--accent); font-size: 16px; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .net-pts { font-size: 20px; font-weight: bold; }
+
+        /* GRAPH AREA */
+        .graph-wrap { width: 100%; height: 80px; background: #000; border: 1px solid #222; margin: 10px 0; position: relative; border-radius: 4px; }
+        .zero-line { position: absolute; top: 40px; left: 0; width: 100%; height: 1px; background: #333; }
+        svg { width: 100%; height: 100%; transform: scaleY(-1); } /* Flip SVG so up is positive */
+
+        .footer-stats { display: flex; justify-content: space-between; font-size: 12px; color: #8b949e; border-top: 1px solid #222; padding-top: 8px; }
+        .signal { text-align: center; color: var(--accent); font-weight: bold; margin-top: 10px; font-size: 14px; min-height: 18px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b id="pageTitle" style="letter-spacing:2px;">DASHBOARD</b>
+            <span id="lastUpdate" style="font-size:10px; color:#555;">AUTO-SYNC ACTIVE</span>
+        </div>
+        <div class="col-bar" id="colBar"></div>
+    </div>
+
+    <div id="container"></div>
+
+<script>
+    // --- CONFIGURATION ---
+    const CATEGORY_NAME = "Short Pattern"; // Change this for other pages
+    let currentCol = 1;
+    let savedStrategies = [];
+
+    function init() {
+        document.getElementById('pageTitle').innerText = CATEGORY_NAME.toUpperCase();
+        
+        // 1. Create Column Buttons (1-7)
+        let barHtml = "";
+        for(let i=1; i<=7; i++) {
+            barHtml += `<button class="col-btn ${i===1?'active':''}" onclick="setCol(${i})" id="btn${i}">COL ${i}</button>`;
+        }
+        document.getElementById('colBar').innerHTML = barHtml;
+
+        // 2. Load Strategies from Factory
+        const all = JSON.parse(localStorage.getItem('phinix_v2')) || [];
+        savedStrategies = all.filter(s => s.cat === CATEGORY_NAME);
+
+        // 3. Initial Run
+        runCalculations();
+
+        // 4. LISTEN FOR DATA UPDATES FROM INPUT PAGE
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'phinix_stream') runCalculations();
+        });
+    }
+
+    function setCol(n) {
+        currentCol = n;
+        document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn'+n).classList.add('active');
+        runCalculations();
+    }
+
+    function runCalculations() {
+        const streamData = JSON.parse(localStorage.getItem('phinix_stream')) || {};
+        const fullHistory = streamData[currentCol] || "";
+        const charArray = fullHistory.split('');
+
+        const resultsHtml = savedStrategies.map(strat => {
+            let stats = { points: 0, wins: 0, breaks: 0, history: [0] };
+            let state = "IDLE"; // IDLE, BETTING, LOCKED
+            let activePattern = null;
+            let step = 0;
+            let currentSignal = "";
+
+            // PROCESS CHARACTER BY CHARACTER
+            let processedStr = "";
+            charArray.forEach((char, index) => {
+                processedStr += char;
+
+                if (state === "BETTING") {
+                    let betPlan = strat.plans[0].split(',').map(Number);
+                    let currentBet = betPlan[step] || betPlan[betPlan.length - 1];
+                    let target = activePattern.p[step];
+
+                    if (char === target) {
+                        stats.points += currentBet;
+                        step++;
+                        if (step >= activePattern.p.length) {
+                            stats.wins++;
+                            state = "IDLE";
+                        }
+                    } else {
+                        stats.points -= currentBet;
+                        stats.breaks++;
+                        state = "IDLE";
+                    }
+                    stats.history.push(stats.points);
+                } 
+                else if (state === "LOCKED") {
+                    let target = activePattern.p[step];
+                    if (char === target) {
+                        step++;
+                        if (step >= activePattern.p.length) state = "IDLE";
+                    } else {
+                        state = "IDLE";
+                    }
+                } 
+                else {
+                    // SCAN FOR TRIGGERS
+                    // Check Shield first
+                    strat.negQ.forEach(neg => {
+                        if (processedStr.endsWith(neg.t)) {
+                            state = "LOCKED";
+                            activePattern = neg;
+                            step = 0;
+                        }
+                    });
+                    // Check Hunters
+                    if (state === "IDLE") {
+                        strat.hunterQ.forEach(hunt => {
+                            if (processedStr.endsWith(hunt.t)) {
+                                state = "BETTING";
+                                activePattern = hunt;
+                                step = 0;
+                            }
+                        });
+                    }
+                }
+            });
+
+            // Calculate Signal for NEXT move
+            if (state === "BETTING") {
+                currentSignal = "NEXT BET: " + activePattern.p[step];
+            } else if (state === "LOCKED") {
+                currentSignal = "🛡️ LOCKDOWN ACTIVE";
+            }
+
+            return renderBox(strat.name, stats, currentSignal);
+        }).join('');
+
+        document.getElementById('container').innerHTML = resultsHtml || `<div style="text-align:center; padding:50px; color:#444;">No strategies saved for this category.</div>`;
+    }
+
+    function renderBox(name, stats, signal) {
+        const path = generateSvgPath(stats.history);
+        const isPositive = stats.points >= 0;
+        
+        return `
+            <div class="box">
+                <div class="box-title">
+                    <span>${name}</span>
+                    <span class="net-pts" style="color:${isPositive ? 'var(--up)' : 'var(--down)'}">
+                        ${isPositive ? '+' : ''}${stats.points}
+                    </span>
+                </div>
+                <div class="graph-wrap">
+                    <div class="zero-line"></div>
+                    <svg viewBox="0 0 100 80" preserveAspectRatio="none">
+                        <polyline points="${path}" fill="none" 
+                            stroke="${isPositive ? 'var(--up)' : 'var(--down)'}" 
+                            stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                    </svg>
+                </div>
+                <div class="footer-stats">
+                    <span>WINS: ${stats.wins}</span>
+                    <span>BREAKS: ${stats.breaks}</span>
+                    <span>PEAK: ${Math.max(...stats.history)}</span>
+                </div>
+                <div class="signal">${signal}</div>
+            </div>
+        `;
+    }
+
+    function generateSvgPath(history) {
+        if (history.length < 2) return "0,40 100,40";
+        const maxAbs = Math.max(...history.map(Math.abs), 10);
+        const spacing = 100 / (history.length - 1);
+        // Map points: 40 is zero, 0 is top (+), 80 is bottom (-)
+        return history.map((p, i) => {
+            const y = 40 - (p * (40 / maxAbs));
+            return `${i * spacing},${y}`;
+        }).join(' ');
+    }
+
+    init();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

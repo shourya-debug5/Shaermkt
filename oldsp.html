@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phinix Sentinel - Ensemble Analytics</title>
+    <style>
+        :root {
+            --bg: #05070a; --panel: #0d1117; --accent: #ffca28;
+            --up: #2eb872; --down: #fa5252; --border: #30363d;
+        }
+        body { background: var(--bg); color: #c9d1d9; font-family: 'Courier New', monospace; margin: 0; padding: 10px; overflow-x: hidden; }
+
+        /* HEADER */
+        .header { position: sticky; top: 0; background: var(--panel); z-index: 1000; border-bottom: 2px solid var(--border); margin: -10px -10px 15px -10px; padding: 12px; }
+        .col-bar { display: flex; gap: 5px; overflow-x: auto; margin-bottom: 10px; }
+        .col-btn { flex: 1; min-width: 65px; background: #161b22; border: 1px solid var(--border); color: #8b949e; padding: 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .col-btn.active { border-color: var(--accent); color: var(--accent); }
+
+        .input-group { display: flex; gap: 5px; background: #000; padding: 8px; border-radius: 6px; }
+        input { flex: 1; background: transparent; border: 1px solid #333; color: var(--accent); padding: 5px; font-size: 12px; outline: none; text-transform: uppercase; }
+
+        /* ANALYTICS BOXES */
+        .dashboard { display: flex; flex-direction: column; gap: 15px; }
+        .box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; position: relative; }
+        .box-weighted { border: 2px solid var(--accent); background: rgba(255, 202, 40, 0.05); }
+
+        .box-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .label { font-size: 10px; color: var(--accent); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .signal { font-size: 48px; font-weight: bold; color: #fff; line-height: 1; margin-top: 5px; }
+        
+        /* GRAPH AREA */
+        .graph-wrap { height: 70px; width: 100%; background: #000; border-radius: 6px; border: 1px solid #1a1d23; margin: 12px 0; }
+        svg { width: 100%; height: 100%; display: block; }
+        .zero-line { stroke: #1a1d23; stroke-width: 1; stroke-dasharray: 4; }
+
+        /* STATS */
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border-top: 1px solid #1a1d23; padding-top: 10px; }
+        .st-item { text-align: center; }
+        .st-label { font-size: 8px; color: #555; display: block; }
+        .st-val { font-size: 14px; font-weight: bold; color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="col-bar" id="colBar"></div>
+        <div class="input-group">
+            <input type="text" id="trIn" placeholder="TRIG" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
+            <input type="text" id="ptIn" placeholder="PTN" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
+            <button onclick="savePtn()" style="background:var(--accent); border:none; border-radius:4px; font-weight:bold; padding:0 15px; color:#000;">SAVE</button>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <div class="box">
+            <div class="box-header">
+                <div><span class="label">🏆 Top 1 Ranker</span><div class="signal" id="v-top1">--</div></div>
+                <div style="text-align:right"><span class="label">LAG</span><div id="l-top1" style="font-size:22px; color:#fff;">-</div></div>
+            </div>
+            <div class="graph-wrap">
+                <svg id="g-top1" viewBox="0 0 100 40">
+                    <line x1="0" y1="20" x2="100" y2="20" class="zero-line"/>
+                    <polyline points="" fill="none" stroke="var(--up)" stroke-width="2" vector-effect="non-scaling-stroke" />
+                </svg>
+            </div>
+            <div class="stats">
+                <div class="st-item"><span class="st-label">WINS</span><span class="st-val" id="w-top1">0</span></div>
+                <div class="st-item"><span class="st-label">BREAKS</span><span class="st-val" id="b-top1">0</span></div>
+                <div class="st-item"><span class="st-label">PEAK</span><span class="st-val" id="p-top1">0</span></div>
+            </div>
+        </div>
+
+        <div class="box">
+            <div class="box-header">
+                <div><span class="label">👥 Top 3 Consensus</span><div class="signal" id="v-top3">--</div></div>
+                <div style="text-align:right"><span class="label">CONF</span><div id="c-top3" style="font-size:22px; color:#fff;">0%</div></div>
+            </div>
+            <div class="graph-wrap">
+                <svg id="g-top3" viewBox="0 0 100 40">
+                    <line x1="0" y1="20" x2="100" y2="20" class="zero-line"/>
+                    <polyline points="" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" />
+                </svg>
+            </div>
+            <div class="stats">
+                <div class="st-item"><span class="st-label">WINS</span><span class="st-val" id="w-top3">0</span></div>
+                <div class="st-item"><span class="st-label">BREAKS</span><span class="st-val" id="b-top3">0</span></div>
+                <div class="st-item"><span class="st-label">PEAK</span><span class="st-val" id="p-top3">0</span></div>
+            </div>
+        </div>
+
+        <div class="box box-weighted">
+            <div class="box-header">
+                <div><span class="label">⚖️ Weighted All</span><div class="signal" id="v-weight" style="color:var(--accent)">--</div></div>
+                <div style="text-align:right"><span class="label">ACTIVE</span><div id="a-weight" style="font-size:22px; color:#fff;">0</div></div>
+            </div>
+            <div class="graph-wrap">
+                <svg id="g-weight" viewBox="0 0 100 40">
+                    <line x1="0" y1="20" x2="100" y2="20" class="zero-line"/>
+                    <polyline points="" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" />
+                </svg>
+            </div>
+            <div class="stats">
+                <div class="st-item"><span class="st-label">WINS</span><span class="st-val" id="w-weight">0</span></div>
+                <div class="st-item"><span class="st-label">BREAKS</span><span class="st-val" id="b-weight">0</span></div>
+                <div class="st-item"><span class="st-label">PEAK</span><span class="st-val" id="p-weight">0</span></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let currentCol = 1;
+    let lags = [1, 2, 3, 5, 8, 10, 12, 15, 20, 25];
+    let ptns = JSON.parse(localStorage.getItem('sentinel_ptns')) || [];
+
+    function savePtn() {
+        const t = document.getElementById('trIn').value;
+        const p = document.getElementById('ptIn').value;
+        if(t && p) {
+            ptns.push({t, p});
+            localStorage.setItem('sentinel_ptns', JSON.stringify(ptns));
+            refresh();
+        }
+    }
+
+    function init() {
+        let barHtml = "";
+        for(let i=1; i<=7; i++) barHtml += `<button class="col-btn ${i==1?'active':''}" onclick="setCol(${i})" id="btn${i}">STRM ${i}</button>`;
+        document.getElementById('colBar').innerHTML = barHtml;
+        refresh();
+        window.addEventListener('storage', (e) => { if(e.key === 'phinix_stream') refresh(); });
+    }
+
+    function setCol(n) {
+        currentCol = n;
+        document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn'+n).classList.add('active');
+        refresh();
+    }
+
+    function refresh() {
+        const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
+        const data = (streams[currentCol] || "").split('');
+        if(data.length < 5) return;
+
+        let activeLags = [];
+        lags.forEach(lag => {
+            let rel = "";
+            for(let i=lag; i<data.length; i++) rel += (data[i] === data[i-lag] ? 'A' : 'B');
+
+            let streak = 0, decision = null;
+            ptns.forEach(item => {
+                const full = item.t + item.p;
+                if(rel.endsWith(full)) {
+                    let count = 0, tmp = rel;
+                    while(tmp.endsWith(full)) { count++; tmp = tmp.slice(0, -full.length); }
+                    if(count > 0) { streak = count; decision = item.p.slice(-1); }
+                }
+            });
+
+            let pnl = [0], curP = 0;
+            rel.slice(-30).split('').forEach(c => { curP += (c==='A'?1:-1); pnl.push(curP); });
+
+            let matchChar = data[data.length - lag];
+            let play = (decision === 'A') ? matchChar : (matchChar === 'A' ? 'B' : 'A');
+
+            if (streak > 0) activeLags.push({ lag, streak, pnl, play });
+        });
+
+        activeLags.sort((a,b) => b.streak - a.streak);
+        
+        if (activeLags.length > 0) {
+            // TOP 1
+            const t1 = activeLags[0];
+            updateCard('top1', t1.play, t1.pnl);
+            document.getElementById('l-top1').innerText = t1.lag;
+
+            // TOP 3
+            const t3 = activeLags.slice(0,3);
+            let v3Votes = {A:0, B:0}; t3.forEach(x => v3Votes[x.play]++);
+            let v3 = v3Votes.A >= v3Votes.B ? 'A' : 'B';
+            updateCard('top3', v3, combinePnls(t3));
+            document.getElementById('c-top3').innerText = Math.round((Math.max(v3Votes.A, v3Votes.B)/t3.length)*100) + "%";
+
+            // WEIGHTED
+            let wVotes = {A:0, B:0}; activeLags.forEach(x => wVotes[x.play] += x.streak);
+            let vw = wVotes.A >= wVotes.B ? 'A' : 'B';
+            updateCard('weight', vw, combinePnls(activeLags));
+            document.getElementById('a-weight').innerText = activeLags.length;
+        }
+    }
+
+    function combinePnls(lags) {
+        let combined = new Array(31).fill(0);
+        lags.forEach(l => l.pnl.forEach((p, i) => combined[i] += p));
+        return combined;
+    }
+
+    function updateCard(id, play, pnl) {
+        document.getElementById(`v-${id}`).innerText = play;
+        
+        let wins = 0, breaks = 0, cur = 0;
+        pnl.forEach(v => {
+            if(v > cur) wins++; else if(v < cur) breaks++;
+            cur = v;
+        });
+
+        document.getElementById(`w-${id}`).innerText = wins;
+        document.getElementById(`b-${id}`).innerText = breaks;
+        document.getElementById(`p-${id}`).innerText = Math.max(...pnl.map(Math.abs));
+
+        const poly = document.querySelector(`#g-${id} polyline`);
+        const max = Math.max(...pnl.map(Math.abs), 5);
+        const step = 100 / (pnl.length - 1);
+        poly.setAttribute('points', pnl.map((v, i) => `${i*step},${20 - (v * (18/max))}`).join(' '));
+    }
+
+    init();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

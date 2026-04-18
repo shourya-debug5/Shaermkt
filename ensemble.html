@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Phinix Factor Analytics - Stable Feed</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --bg: #050508; --accent: #ffca28; --border: #30363d; --m-clr: #4dabf7; --i-clr: #ff922b; }
+        body { background: var(--bg); color: #c9d1d9; font-family: 'Courier New', monospace; margin: 0; padding: 10px; }
+        
+        /* Sticky Header */
+        .col-bar { 
+            display: flex; gap: 5px; margin-bottom: 20px; position: sticky; top: 0; 
+            z-index: 100; background: var(--bg); padding: 5px 0; 
+        }
+        .col-btn { flex: 1; background: #161b22; border: 1px solid var(--border); color: #8b949e; cursor: pointer; border-radius: 4px; font-weight: bold; padding: 12px 0; }
+        .col-btn.active { border-color: var(--accent); color: var(--accent); background: #1c2128; }
+
+        .chart-list { display: flex; flex-direction: column; gap: 25px; width: 100%; }
+        
+        /* Fixed Height Container to prevent expansion */
+        .chart-container { 
+            background: #0d1117; border: 1px solid var(--border); border-radius: 12px; 
+            padding: 15px; display: flex; flex-direction: column; 
+            max-height: 600px; /* Safety cap */
+            overflow: hidden; 
+        }
+
+        .chart-header { display: flex; justify-content: space-between; font-size: 12px; height: 35px; flex-shrink: 0; align-items: center; border-bottom: 1px solid #1c2128; margin-bottom: 10px; }
+        .stats-row { display: flex; gap: 10px; margin-bottom: 10px; font-size: 11px; flex-shrink: 0; }
+        .stat-box { background: #161b22; padding: 4px 8px; border-radius: 4px; border: 1px solid #222; }
+        
+        .pred-val { color: var(--accent); font-weight: bold; font-size: 20px; padding: 2px 12px; background: #000; border: 1px solid var(--accent); border-radius: 4px; }
+        
+        /* Chart area must be flexible but contained */
+        .canvas-wrapper { flex: 1; min-height: 200px; position: relative; width: 100%; margin-bottom: 10px; }
+
+        /* THE FIX: Internal scrollable list for the patterns */
+        .detail-feed { 
+            background: rgba(0,0,0,0.5); 
+            border-radius: 6px; 
+            padding: 8px; 
+            font-size: 10px; 
+            height: 120px; /* Locked height */
+            overflow-y: auto; /* Scroll if content exceeds height */
+            border: 1px solid #222;
+            flex-shrink: 0; 
+        }
+        
+        .feed-item { 
+            display: flex; justify-content: space-between; padding: 4px 0; 
+            border-bottom: 1px solid #1a1a1a; font-family: monospace; 
+        }
+        .feed-item span { color: var(--accent); font-weight: bold; }
+        
+        /* Style the scrollbar to keep it clean */
+        .detail-feed::-webkit-scrollbar { width: 4px; }
+        .detail-feed::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="col-bar" id="colBar"></div>
+
+    <div class="chart-list" id="mainList">
+        </div>
+
+<script>
+    const factors = [
+        {id: 'm1', name: 'TOP 1 MIRROR', clr: 'var(--m-clr)'},
+        {id: 'm3', name: 'TOP 3 MIRROR AVG', clr: 'var(--m-clr)'},
+        {id: 'glob', name: 'GLOBAL CONSENSUS', clr: '#fff'},
+        {id: 'i1', name: 'TOP 1 INVERSE', clr: 'var(--i-clr)'},
+        {id: 'i3', name: 'TOP 3 INVERSE AVG', clr: 'var(--i-clr)'},
+        {id: 'weight', name: 'WEIGHTED TOTAL', clr: 'var(--accent)'}
+    ];
+
+    let activeTgt = 1;
+    let charts = {};
+    let scores = { m1: [0], m3: [0], glob: [0], i1: [0], i3: [0], weight: [0] };
+    let lastPreds = JSON.parse(sessionStorage.getItem('last_preds')) || { m1: null, m3: null, glob: null, i1: null, i3: null, weight: null };
+
+    function init() {
+        const list = document.getElementById('mainList');
+        factors.forEach(f => {
+            const container = document.createElement('div');
+            container.className = 'chart-container';
+            container.style.borderTop = `4px solid ${f.clr}`;
+            container.innerHTML = `
+                <div class="chart-header" style="color: ${f.clr}">${f.name} <span id="p-${f.id}" class="pred-val">--</span></div>
+                <div class="stats-row">
+                    <div class="stat-box">Found: <b id="count-${f.id}">0</b></div>
+                    <div class="stat-box">Peak Streak: <b id="streak-${f.id}">0</b></div>
+                </div>
+                <div class="canvas-wrapper"><canvas id="c-${f.id}"></canvas></div>
+                <div class="detail-feed" id="feed-${f.id}">Scanning for patterns...</div>
+            `;
+            list.appendChild(container);
+
+            const ctx = document.getElementById('c-'+f.id).getContext('2d');
+            charts[f.id] = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [0], datasets: [{ data: [0], borderColor: getClr(f.id), borderWidth: 2, tension: 0.2, pointRadius: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} }, scales: { x: {display: false}, y: {grid: {color: '#1a1d23'}} } }
+            });
+        });
+
+        let bar = "";
+        for(let i=1; i<=7; i++) bar += `<button class="col-btn ${i==1?'active':''}" onclick="setTarget(${i})" id="btn${i}">COL ${i}</button>`;
+        document.getElementById('colBar').innerHTML = bar;
+        
+        refresh();
+        window.addEventListener('storage', (e) => { if(e.key === 'phinix_stream') refresh(); });
+    }
+
+    function getClr(id) {
+        if(id.startsWith('m')) return '#4dabf7';
+        if(id.startsWith('i')) return '#ff922b';
+        return '#ffca28';
+    }
+
+    function setTarget(n) {
+        activeTgt = n;
+        document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn'+n).classList.add('active');
+        Object.keys(scores).forEach(k => scores[k] = [0]);
+        sessionStorage.removeItem('last_preds');
+        refresh();
+    }
+
+    function refresh() {
+        const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
+        const targetData = (streams[activeTgt] || "").split('');
+        if(targetData.length < 2) return;
+
+        const actualResult = targetData[targetData.length - 1];
+        
+        Object.keys(lastPreds).forEach(key => {
+            if(lastPreds[key]) {
+                let currentTotal = scores[key][scores[key].length - 1];
+                currentTotal += (lastPreds[key] === actualResult) ? 1 : -1;
+                scores[key].push(currentTotal);
+                charts[key].data.labels.push("");
+                charts[key].data.datasets[0].data = scores[key];
+                charts[key].update('none');
+            }
+        });
+
+        let allLags = [];
+        for (let srcId = 1; srcId <= 7; srcId++) {
+            const sourceData = (streams[srcId] || "").split('');
+            for (let lag = 1; lag <= 30; lag++) {
+                let mStr = 0, iStr = 0, mAct = false, iAct = false;
+                for (let i = lag; i < sourceData.length; i++) {
+                    if(targetData[i] === sourceData[i-lag]) mStr++; else mStr = 0;
+                    if(targetData[i] !== sourceData[i-lag]) iStr++; else iStr = 0;
+                    if(mStr >= 5) mAct = true; if(iStr >= 5) iAct = true;
+                }
+                if (mAct && lag >= 10) { 
+                    allLags.push({ type: 'Mirror', src: srcId, lag: lag, str: mStr, pred: sourceData[sourceData.length - lag] });
+                    lag += Math.floor(mStr/2);
+                }
+                if (iAct && lag >= 5) { 
+                    allLags.push({ type: 'Inverse', src: srcId, lag: lag, str: iStr, pred: (sourceData[sourceData.length - lag] == 'A' ? 'B' : 'A') });
+                    lag += Math.floor(iStr/2);
+                }
+            }
+        }
+
+        let mirrors = allLags.filter(l => l.type == 'Mirror').sort((a,b) => b.str - a.str);
+        let inverses = allLags.filter(l => l.type == 'Inverse').sort((a,b) => b.str - a.str);
+
+        updateCard('m1', mirrors.slice(0,1));
+        updateCard('m3', mirrors.slice(0,3));
+        updateCard('i1', inverses.slice(0,1));
+        updateCard('i3', inverses.slice(0,3));
+        updateCard('glob', allLags);
+        
+        let streakSum = {A: 0, B: 0}, weightVotes = {A: 0, B: 0};
+        allLags.forEach(l => { if(l.pred) streakSum[l.pred] += l.str; });
+
+        let m1 = mirrors[0]?.pred, i1 = inverses[0]?.pred;
+        let m3 = getAvg(mirrors.slice(0,3)), i3 = getAvg(inverses.slice(0,3)), glob = getAvg(allLags);
+
+        if(m1) weightVotes[m1] += 3; if(i1) weightVotes[i1] += 3;
+        if(m3) weightVotes[m3] += 2; if(i3) weightVotes[i3] += 2;
+        if(glob) weightVotes[glob] += 1;
+
+        let finalW = null;
+        if (weightVotes.A > weightVotes.B) finalW = 'A';
+        else if (weightVotes.B > weightVotes.A) finalW = 'B';
+        else if (streakSum.A !== streakSum.B) finalW = (streakSum.A > streakSum.B) ? 'A' : 'B';
+
+        lastPreds = { m1, m3, glob, i1, i3, weight: finalW };
+        updateCard('weight', allLags, finalW);
+
+        sessionStorage.setItem('last_preds', JSON.stringify(lastPreds));
+    }
+
+    function updateCard(id, data, forcePred = null) {
+        document.getElementById('p-'+id).innerText = forcePred || getAvg(data) || '--';
+        document.getElementById('count-'+id).innerText = data.length;
+        document.getElementById('streak-'+id).innerText = data.length ? Math.max(...data.map(d => d.str)) : 0;
+        
+        document.getElementById('feed-'+id).innerHTML = data.map(d => `
+            <div class="feed-item">C${d.src} Lag${d.lag} <span>S:${d.str}</span> -> ${d.pred}</div>
+        `).join('') || "Searching...";
+    }
+
+    function getAvg(arr) {
+        if(!arr?.length) return null;
+        let c = {A:0, B:0};
+        arr.forEach(x => c[x.pred]++);
+        return (c.A === c.B) ? null : (c.A > c.B ? 'A' : 'B');
+    }
+
+    init();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phinix - Finalized Input</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --accent: #ffca28;
+            --up: #2eb872;
+            --down: #fa5252;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --pink: #ff69b4;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+
+        .nav { 
+            background: var(--panel); 
+            padding: 8px; 
+            border-bottom: 1px solid var(--border); 
+            text-align: center;
+        }
+        .nav h2 { color: var(--accent); margin: 0; font-size: 14px; letter-spacing: 3px; }
+
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+
+        .left-panel { 
+            width: 50%; 
+            border-right: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            background: #090c10;
+        }
+
+        .right-panel { 
+            width: 50%; 
+            background: var(--bg); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: #444;
+        }
+
+        .table-scroll { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+        
+        thead th { 
+            position: sticky; 
+            top: 0; 
+            background: var(--panel); 
+            z-index: 10; 
+            border: 1px solid var(--border);
+            padding: 5px 2px;
+        }
+
+        td { 
+            border: 1px solid var(--border); 
+            text-align: center; 
+            padding: 6px 2px; 
+        }
+
+        .sno { width: 35px; color: var(--accent); font-weight: bold; font-size: 10px; }
+        .del-cell { width: 25px; }
+
+        .entry-field {
+            width: 85%;
+            background: #000;
+            border: 1px solid #444;
+            color: #fff;
+            text-align: center;
+            font-size: 12px;
+            text-transform: uppercase;
+            padding: 3px 0;
+            border-radius: 0;
+        }
+
+        .entry-field:focus { border-color: var(--accent); outline: none; }
+
+        .btn-del { 
+            color: var(--pink); 
+            background: none; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 12px; 
+            font-weight: bold;
+        }
+
+        .text-a { color: var(--up); font-weight: bold; }
+        .text-b { color: var(--down); font-weight: bold; }
+
+        .controls { display: flex; gap: 5px; padding: 5px; background: var(--panel); justify-content: center; }
+        .small-input { width: 40px; background: #000; color: #fff; border: 1px solid #444; padding: 2px; }
+        
+        #syncStatus { font-size: 10px; color: #333; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+    <div class="nav"><h2>PHINIX</h2></div>
+
+    <div class="main-layout">
+        <div class="left-panel">
+            <div class="controls">
+                <input type="number" id="colCount" placeholder="Cols" class="small-input">
+                <button onclick="setupColumns(true)" style="font-size:10px; cursor:pointer; background:var(--accent); border:none; border-radius:2px; padding: 2px 8px;">SET</button>
+            </div>
+
+            <div class="table-scroll" id="scrollArea">
+                <table>
+                    <thead id="tableHeader"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <p id="syncStatus">READY FOR DATA</p>
+        </div>
+    </div>
+
+    <script>
+        let totalCols = 0;
+
+        // --- NEW: Load data immediately on startup ---
+        window.onload = function() {
+            const savedCols = localStorage.getItem('phinix_total_cols');
+            if (savedCols) {
+                document.getElementById('colCount').value = savedCols;
+                setupColumns(false); // setup layout without clearing data
+                loadFromStorage();   // fill with saved data
+            }
+        };
+
+        function syncToStorage() {
+            const rows = document.getElementById('tableBody').rows;
+            let streamData = { 1:"", 2:"", 3:"", 4:"", 5:"", 6:"", 7:"" };
+            let colArrays = [[], [], [], [], [], [], []]; // For Ratio page
+
+            for (let i = 0; i < rows.length; i++) {
+                for (let c = 0; c < totalCols; c++) {
+                    let val = rows[i].cells[c + 1].innerText;
+                    if (val === "A" || val === "B") {
+                        streamData[c + 1] += val;
+                        colArrays[c].push(val);
+                    }
+                }
+            }
+            localStorage.setItem('phinix_stream', JSON.stringify(streamData));
+            localStorage.setItem('phinix_col_data', JSON.stringify(colArrays)); // Shared with Ratio
+            document.getElementById('syncStatus').innerText = "LIVE SYNC: " + rows.length + " ROWS";
+        }
+
+        // --- NEW: Restore table rows from memory ---
+        function loadFromStorage() {
+            const saved = localStorage.getItem('phinix_stream');
+            if (!saved) return;
+            
+            const streamData = JSON.parse(saved);
+            const body = document.getElementById('tableBody');
+            body.innerHTML = "";
+
+            // Find the longest column string to determine row count
+            let maxLen = 0;
+            for (let key in streamData) {
+                if (streamData[key].length > maxLen) maxLen = streamData[key].length;
+            }
+
+            for (let i = 0; i < maxLen; i++) {
+                const row = document.createElement('tr');
+                let cells = `<td class="sno">${i + 1}</td>`;
+                for (let c = 0; c < totalCols; c++) {
+                    let val = streamData[c + 1][i] || "-";
+                    cells += `<td class="${val==='A'?'text-a':val==='B'?'text-b':''}">${val}</td>`;
+                }
+                cells += `<td><button class="btn-del" onclick="deleteRow(this)">x</button></td>`;
+                row.innerHTML = cells;
+                body.appendChild(row);
+            }
+            updateSerialNumbers();
+            document.getElementById('syncStatus').innerText = "RESTORED: " + maxLen + " ROWS";
+        }
+
+        function setupColumns(isReset) {
+            const count = parseInt(document.getElementById('colCount').value);
+            if (isNaN(count) || count < 1 || count > 7) return alert("1-7 Cols Only");
+            totalCols = count;
+            localStorage.setItem('phinix_total_cols', count);
+            
+            let headerHtml = `
+                <tr>
+                    <th class="sno">#</th>
+                    ${Array(count).fill(0).map((_,i)=>`<th>C${i+1}</th>`).join('')}
+                    <th class="del-cell"></th>
+                </tr>
+                <tr>
+                    <th style="color:var(--accent); font-size:9px;">IN</th>
+                    ${Array(count).fill(0).map((_,i)=>`
+                        <th>
+                            <input type="text" id="in${i}" class="entry-field" maxlength="1" 
+                                   oninput="handleStrictInput(this, ${i})" 
+                                   onkeydown="handleSpecialKeys(event, ${i})">
+                        </th>
+                    `).join('')}
+                    <th></th>
+                </tr>
+            `;
+            document.getElementById('tableHeader').innerHTML = headerHtml;
+            
+            if (isReset) {
+                document.getElementById('tableBody').innerHTML = "";
+                syncToStorage();
+            }
+            
+            setTimeout(() => document.getElementById('in0').focus(), 100);
+        }
+
+        function handleStrictInput(el, index) {
+            let val = el.value.toUpperCase();
+            if (val !== 'A' && val !== 'B') {
+                el.value = "";
+                return;
+            }
+            el.value = val;
+            if (index < totalCols - 1) {
+                document.getElementById(`in${index + 1}`).focus();
+            } else {
+                saveData();
+            }
+        }
+
+        function handleSpecialKeys(e, index) {
+            if (e.key === "Backspace" && e.target.value === "" && index > 0) {
+                document.getElementById(`in${index - 1}`).focus();
+            }
+            if (e.key === "Enter") saveData();
+        }
+
+        function saveData() {
+            const body = document.getElementById('tableBody');
+            let hasData = false;
+            let cells = "";
+
+            for (let i = 0; i < totalCols; i++) {
+                let input = document.getElementById(`in${i}`);
+                let val = input.value.toUpperCase();
+                cells += `<td class="${val==='A'?'text-a':val==='B'?'text-b':''}">${val || "-"}</td>`;
+                if (val) hasData = true;
+                input.value = ""; 
+            }
+
+            if (hasData) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="sno"></td>${cells}<td><button class="btn-del" onclick="deleteRow(this)">x</button></td>`;
+                
+                body.appendChild(row);
+                updateSerialNumbers();
+                syncToStorage(); 
+                
+                document.getElementById('in0').focus();
+                const scrollArea = document.getElementById('scrollArea');
+                scrollArea.scrollTop = scrollArea.scrollHeight;
+            }
+        }
+
+        function deleteRow(btn) {
+            if (confirm("Delete this row?")) {
+                const row = btn.parentNode.parentNode;
+                row.parentNode.removeChild(row);
+                updateSerialNumbers();
+                syncToStorage(); 
+            }
+        }
+
+        function updateSerialNumbers() {
+            const rows = document.getElementById('tableBody').rows;
+            for (let i = 0; i < rows.length; i++) {
+                rows[i].cells[0].innerText = i + 1;
+            }
+        }
+    </script>
+    <script src="nav.js"></script>
+</body>
+</html>
