@@ -2,220 +2,200 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Phinix Factor Analytics - Stable Feed</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phinix Ensemble - 8 Factor Engine</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --bg: #050508; --accent: #ffca28; --border: #30363d; --m-clr: #4dabf7; --i-clr: #ff922b; }
-        body { background: var(--bg); color: #c9d1d9; font-family: 'Courier New', monospace; margin: 0; padding: 10px; }
+        body { background: var(--bg); color: #c9d1d9; font-family: monospace; margin: 0; padding: 10px; overflow-x: hidden; }
         
-        /* Sticky Header */
-        .col-bar { 
-            display: flex; gap: 5px; margin-bottom: 20px; position: sticky; top: 0; 
-            z-index: 100; background: var(--bg); padding: 5px 0; 
-        }
-        .col-btn { flex: 1; background: #161b22; border: 1px solid var(--border); color: #8b949e; cursor: pointer; border-radius: 4px; font-weight: bold; padding: 12px 0; }
+        /* Nav bar for mobile */
+        .col-bar { display: flex; gap: 8px; margin-bottom: 15px; position: sticky; top: 0; z-index: 100; background: var(--bg); padding: 10px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .col-bar::-webkit-scrollbar { display: none; }
+        .col-btn { flex: 0 0 75px; background: #161b22; border: 1px solid var(--border); color: #8b949e; border-radius: 6px; font-weight: bold; padding: 12px 0; font-size: 11px; }
         .col-btn.active { border-color: var(--accent); color: var(--accent); background: #1c2128; }
 
-        .chart-list { display: flex; flex-direction: column; gap: 25px; width: 100%; }
+        /* Grid: 1 col on phone, 2 on tablet */
+        .grid { display: grid; grid-template-columns: 1fr; gap: 15px; width: 100%; }
+        @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
         
-        /* Fixed Height Container to prevent expansion */
-        .chart-container { 
-            background: #0d1117; border: 1px solid var(--border); border-radius: 12px; 
-            padding: 15px; display: flex; flex-direction: column; 
-            max-height: 600px; /* Safety cap */
-            overflow: hidden; 
-        }
+        .card { background: #0d1117; border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; height: 380px; overflow: hidden; }
+        .card-header { display: flex; justify-content: space-between; font-size: 10px; height: 30px; align-items: center; border-bottom: 1px solid #1c2128; margin-bottom: 8px; font-weight: bold; }
+        .stats { display: flex; gap: 5px; margin-bottom: 8px; font-size: 10px; }
+        .s-box { flex: 1; background: #161b22; padding: 5px; border-radius: 4px; border: 1px solid #222; text-align: center; }
+        
+        .pred-val { color: var(--accent); font-size: 18px; padding: 2px 10px; background: #000; border: 1px solid var(--accent); border-radius: 4px; min-width: 30px; text-align: center; }
+        
+        .viewport { flex: 1; min-height: 140px; overflow-x: auto; background: #080808; border-radius: 6px; margin-bottom: 8px; border: 1px solid #1a1a1a; }
+        .canvas-inner { height: 100%; min-width: 100%; }
 
-        .chart-header { display: flex; justify-content: space-between; font-size: 12px; height: 35px; flex-shrink: 0; align-items: center; border-bottom: 1px solid #1c2128; margin-bottom: 10px; }
-        .stats-row { display: flex; gap: 10px; margin-bottom: 10px; font-size: 11px; flex-shrink: 0; }
-        .stat-box { background: #161b22; padding: 4px 8px; border-radius: 4px; border: 1px solid #222; }
-        
-        .pred-val { color: var(--accent); font-weight: bold; font-size: 20px; padding: 2px 12px; background: #000; border: 1px solid var(--accent); border-radius: 4px; }
-        
-        /* Chart area must be flexible but contained */
-        .canvas-wrapper { flex: 1; min-height: 200px; position: relative; width: 100%; margin-bottom: 10px; }
-
-        /* THE FIX: Internal scrollable list for the patterns */
-        .detail-feed { 
-            background: rgba(0,0,0,0.5); 
-            border-radius: 6px; 
-            padding: 8px; 
-            font-size: 10px; 
-            height: 120px; /* Locked height */
-            overflow-y: auto; /* Scroll if content exceeds height */
-            border: 1px solid #222;
-            flex-shrink: 0; 
-        }
-        
-        .feed-item { 
-            display: flex; justify-content: space-between; padding: 4px 0; 
-            border-bottom: 1px solid #1a1a1a; font-family: monospace; 
-        }
-        .feed-item span { color: var(--accent); font-weight: bold; }
-        
-        /* Style the scrollbar to keep it clean */
-        .detail-feed::-webkit-scrollbar { width: 4px; }
-        .detail-feed::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        .feed { background: rgba(0,0,0,0.4); border-radius: 6px; padding: 6px; font-size: 9px; height: 80px; overflow-y: auto; border: 1px solid #222; }
+        .f-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #1a1a1a; }
+        .f-item b { color: var(--accent); }
     </style>
 </head>
 <body>
 
     <div class="col-bar" id="colBar"></div>
-
-    <div class="chart-list" id="mainList">
-        </div>
+    <div class="grid" id="mainGrid"></div>
 
 <script>
     const factors = [
         {id: 'm1', name: 'TOP 1 MIRROR', clr: 'var(--m-clr)'},
-        {id: 'm3', name: 'TOP 3 MIRROR AVG', clr: 'var(--m-clr)'},
-        {id: 'glob', name: 'GLOBAL CONSENSUS', clr: '#fff'},
+        {id: 'm3', name: 'TOP 3 MIRROR', clr: 'var(--m-clr)'},
+        {id: 'mAll', name: 'ALL MIRROR', clr: 'var(--m-clr)'},
         {id: 'i1', name: 'TOP 1 INVERSE', clr: 'var(--i-clr)'},
-        {id: 'i3', name: 'TOP 3 INVERSE AVG', clr: 'var(--i-clr)'},
-        {id: 'weight', name: 'WEIGHTED TOTAL', clr: 'var(--accent)'}
+        {id: 'i3', name: 'TOP 3 INVERSE', clr: 'var(--i-clr)'},
+        {id: 'iAll', name: 'ALL INVERSE', clr: 'var(--i-clr)'},
+        {id: 'comb3', name: 'TOP 3 M+I CONSENSUS', clr: '#fff'},
+        {id: 'combAll', name: 'GLOBAL M+I WEIGHTED', clr: 'var(--accent)'}
     ];
 
-    let activeTgt = 1;
+    let activeCol = 1;
     let charts = {};
-    let scores = { m1: [0], m3: [0], glob: [0], i1: [0], i3: [0], weight: [0] };
-    let lastPreds = JSON.parse(sessionStorage.getItem('last_preds')) || { m1: null, m3: null, glob: null, i1: null, i3: null, weight: null };
+    let scores = JSON.parse(sessionStorage.getItem('ens_scores')) || {};
+    factors.forEach(f => { if(!scores[f.id]) scores[f.id] = [0]; });
+    
+    let lastPreds = JSON.parse(sessionStorage.getItem('ens_preds')) || {};
 
     function init() {
-        const list = document.getElementById('mainList');
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = ''; 
         factors.forEach(f => {
-            const container = document.createElement('div');
-            container.className = 'chart-container';
-            container.style.borderTop = `4px solid ${f.clr}`;
-            container.innerHTML = `
-                <div class="chart-header" style="color: ${f.clr}">${f.name} <span id="p-${f.id}" class="pred-val">--</span></div>
-                <div class="stats-row">
-                    <div class="stat-box">Found: <b id="count-${f.id}">0</b></div>
-                    <div class="stat-box">Peak Streak: <b id="streak-${f.id}">0</b></div>
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.borderTop = `3px solid ${f.clr}`;
+            card.innerHTML = `
+                <div class="card-header" style="color:${f.clr}">${f.name} <span id="p-${f.id}" class="pred-val">--</span></div>
+                <div class="stats">
+                    <div class="s-box">TOTAL: <b id="cnt-${f.id}">0</b></div>
+                    <div class="s-box">NET +/-: <b id="pk-${f.id}">0</b></div>
                 </div>
-                <div class="canvas-wrapper"><canvas id="c-${f.id}"></canvas></div>
-                <div class="detail-feed" id="feed-${f.id}">Scanning for patterns...</div>
+                <div class="viewport"><div class="canvas-inner" id="v-${f.id}"><canvas id="c-${f.id}"></canvas></div></div>
+                <div class="feed" id="feed-${f.id}">Scanning...</div>
             `;
-            list.appendChild(container);
-
-            const ctx = document.getElementById('c-'+f.id).getContext('2d');
-            charts[f.id] = new Chart(ctx, {
-                type: 'line',
-                data: { labels: [0], datasets: [{ data: [0], borderColor: getClr(f.id), borderWidth: 2, tension: 0.2, pointRadius: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} }, scales: { x: {display: false}, y: {grid: {color: '#1a1d23'}} } }
-            });
+            grid.appendChild(card);
+            createChart(f.id, f.clr);
         });
-
-        let bar = "";
-        for(let i=1; i<=7; i++) bar += `<button class="col-btn ${i==1?'active':''}" onclick="setTarget(${i})" id="btn${i}">COL ${i}</button>`;
-        document.getElementById('colBar').innerHTML = bar;
-        
+        renderNav();
         refresh();
         window.addEventListener('storage', (e) => { if(e.key === 'phinix_stream') refresh(); });
     }
 
-    function getClr(id) {
-        if(id.startsWith('m')) return '#4dabf7';
-        if(id.startsWith('i')) return '#ff922b';
-        return '#ffca28';
+    function createChart(id, clr) {
+        const ctx = document.getElementById('c-'+id).getContext('2d');
+        charts[id] = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: scores[id].map((_,i)=>i), 
+                datasets: [{ data: scores[id], borderColor: getHex(clr), borderWidth: 2, tension: 0.1, pointRadius: 0 }] 
+            },
+            options: { 
+                responsive: true, maintainAspectRatio: false, 
+                animation: false,
+                scales: { 
+                    y: { grid: {color:'#1a1d23'}, suggestedMin: -5, suggestedMax: 5 }, 
+                    x: { display: false } 
+                }, 
+                plugins: { legend: {display: false} } 
+            }
+        });
     }
 
-    function setTarget(n) {
-        activeTgt = n;
-        document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn'+n).classList.add('active');
-        Object.keys(scores).forEach(k => scores[k] = [0]);
-        sessionStorage.removeItem('last_preds');
-        refresh();
+    function getHex(c) {
+        if(c.includes('m-clr')) return '#4dabf7';
+        if(c.includes('i-clr')) return '#ff922b';
+        if(c.includes('accent')) return '#ffca28';
+        return '#ffffff';
     }
 
     function refresh() {
         const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
-        const targetData = (streams[activeTgt] || "").split('');
-        if(targetData.length < 2) return;
+        const target = streams[activeCol] || "";
+        if(target.length < 6) return;
 
-        const actualResult = targetData[targetData.length - 1];
-        
-        Object.keys(lastPreds).forEach(key => {
-            if(lastPreds[key]) {
-                let currentTotal = scores[key][scores[key].length - 1];
-                currentTotal += (lastPreds[key] === actualResult) ? 1 : -1;
-                scores[key].push(currentTotal);
-                charts[key].data.labels.push("");
-                charts[key].data.datasets[0].data = scores[key];
-                charts[key].update('none');
+        const actual = target.slice(-1);
+        const trigger = target.slice(-6, -1);
+        const invTrigger = trigger.split('').map(c => c==='A'?'B':'A').join('');
+
+        // 1. Process previous prediction vs Actual
+        factors.forEach(f => {
+            if(lastPreds[f.id]) {
+                let s = scores[f.id];
+                s.push(s[s.length-1] + (lastPreds[f.id] === actual ? 1 : -1));
+                charts[f.id].data.labels.push("");
+                charts[f.id].update('none');
+                const vp = document.getElementById(`v-${f.id}`).parentNode;
+                vp.scrollLeft = vp.scrollWidth;
             }
         });
 
-        let allLags = [];
-        for (let srcId = 1; srcId <= 7; srcId++) {
-            const sourceData = (streams[srcId] || "").split('');
-            for (let lag = 1; lag <= 30; lag++) {
-                let mStr = 0, iStr = 0, mAct = false, iAct = false;
-                for (let i = lag; i < sourceData.length; i++) {
-                    if(targetData[i] === sourceData[i-lag]) mStr++; else mStr = 0;
-                    if(targetData[i] !== sourceData[i-lag]) iStr++; else iStr = 0;
-                    if(mStr >= 5) mAct = true; if(iStr >= 5) iAct = true;
+        // 2. Vertical String Matching Logic
+        let mirrors = [], inverses = [];
+        for (let c = 1; c <= 7; c++) {
+            const data = streams[c] || "";
+            const lag = (c == activeCol) ? 5 : 1;
+            for (let i = 0; i < data.length - 6 - lag; i++) {
+                // Mirror: Match trigger, predict what followed
+                if (data.substring(i, i+5) === trigger) {
+                    mirrors.push({src:c, pred:data[i+5]});
                 }
-                if (mAct && lag >= 10) { 
-                    allLags.push({ type: 'Mirror', src: srcId, lag: lag, str: mStr, pred: sourceData[sourceData.length - lag] });
-                    lag += Math.floor(mStr/2);
-                }
-                if (iAct && lag >= 5) { 
-                    allLags.push({ type: 'Inverse', src: srcId, lag: lag, str: iStr, pred: (sourceData[sourceData.length - lag] == 'A' ? 'B' : 'A') });
-                    lag += Math.floor(iStr/2);
+                // Inverse: Match the flipped trigger, predict the flipped result
+                if (data.substring(i, i+5) === invTrigger) {
+                    inverses.push({src:c, pred:data[i+5]==='A'?'B':'A'});
                 }
             }
         }
 
-        let mirrors = allLags.filter(l => l.type == 'Mirror').sort((a,b) => b.str - a.str);
-        let inverses = allLags.filter(l => l.type == 'Inverse').sort((a,b) => b.str - a.str);
+        // 3. Update the 8 Predictors
+        lastPreds = {
+            m1: mirrors.length ? mirrors[mirrors.length-1].pred : null,
+            m3: getVote(mirrors.slice(-3)),
+            mAll: getVote(mirrors),
+            i1: inverses.length ? inverses[inverses.length-1].pred : null,
+            i3: getVote(inverses.slice(-3)),
+            iAll: getVote(inverses),
+            comb3: getVote([...mirrors.slice(-3), ...inverses.slice(-3)]),
+            combAll: getVote([...mirrors, ...inverses])
+        };
 
-        updateCard('m1', mirrors.slice(0,1));
-        updateCard('m3', mirrors.slice(0,3));
-        updateCard('i1', inverses.slice(0,1));
-        updateCard('i3', inverses.slice(0,3));
-        updateCard('glob', allLags);
-        
-        let streakSum = {A: 0, B: 0}, weightVotes = {A: 0, B: 0};
-        allLags.forEach(l => { if(l.pred) streakSum[l.pred] += l.str; });
+        sessionStorage.setItem('ens_preds', JSON.stringify(lastPreds));
+        sessionStorage.setItem('ens_scores', JSON.stringify(scores));
 
-        let m1 = mirrors[0]?.pred, i1 = inverses[0]?.pred;
-        let m3 = getAvg(mirrors.slice(0,3)), i3 = getAvg(inverses.slice(0,3)), glob = getAvg(allLags);
-
-        if(m1) weightVotes[m1] += 3; if(i1) weightVotes[i1] += 3;
-        if(m3) weightVotes[m3] += 2; if(i3) weightVotes[i3] += 2;
-        if(glob) weightVotes[glob] += 1;
-
-        let finalW = null;
-        if (weightVotes.A > weightVotes.B) finalW = 'A';
-        else if (weightVotes.B > weightVotes.A) finalW = 'B';
-        else if (streakSum.A !== streakSum.B) finalW = (streakSum.A > streakSum.B) ? 'A' : 'B';
-
-        lastPreds = { m1, m3, glob, i1, i3, weight: finalW };
-        updateCard('weight', allLags, finalW);
-
-        sessionStorage.setItem('last_preds', JSON.stringify(lastPreds));
+        // Update UI Boxes
+        updateUI('m1', mirrors.slice(-1), lastPreds.m1);
+        updateUI('m3', mirrors.slice(-3), lastPreds.m3);
+        updateUI('mAll', mirrors, lastPreds.mAll);
+        updateUI('i1', inverses.slice(-1), lastPreds.i1);
+        updateUI('i3', inverses.slice(-3), lastPreds.i3);
+        updateUI('iAll', inverses, lastPreds.iAll);
+        updateUI('comb3', [...mirrors.slice(-3), ...inverses.slice(-3)], lastPreds.comb3);
+        updateUI('combAll', [...mirrors, ...inverses], lastPreds.combAll);
     }
 
-    function updateCard(id, data, forcePred = null) {
-        document.getElementById('p-'+id).innerText = forcePred || getAvg(data) || '--';
-        document.getElementById('count-'+id).innerText = data.length;
-        document.getElementById('streak-'+id).innerText = data.length ? Math.max(...data.map(d => d.str)) : 0;
-        
-        document.getElementById('feed-'+id).innerHTML = data.map(d => `
-            <div class="feed-item">C${d.src} Lag${d.lag} <span>S:${d.str}</span> -> ${d.pred}</div>
-        `).join('') || "Searching...";
+    function getVote(arr) {
+        if(!arr.length) return null;
+        let v = {A:0, B:0};
+        arr.forEach(d => v[d.pred]++);
+        return v.A === v.B ? null : (v.A > v.B ? 'A' : 'B');
     }
 
-    function getAvg(arr) {
-        if(!arr?.length) return null;
-        let c = {A:0, B:0};
-        arr.forEach(x => c[x.pred]++);
-        return (c.A === c.B) ? null : (c.A > c.B ? 'A' : 'B');
+    function updateUI(id, data, pred) {
+        document.getElementById('p-'+id).innerText = pred || '--';
+        document.getElementById('cnt-'+id).innerText = data.length;
+        document.getElementById('pk-'+id).innerText = scores[id][scores[id].length - 1]; // Net score
+        document.getElementById('feed-'+id).innerHTML = data.slice(-8).reverse().map(d => `
+            <div class="f-item">C${d.src} Found Match -> <b>${d.pred}</b></div>
+        `).join('') || "No active matches.";
+    }
+
+    function renderNav() {
+        let h = "";
+        for(let i=1; i<=7; i++) h += `<button class="col-btn ${i==activeCol?'active':''}" onclick="activeCol=${i};renderNav();refresh();">COL ${i}</button>`;
+        document.getElementById('colBar').innerHTML = h;
     }
 
     init();
 </script>
-<script src="nav.js"></script>
 </body>
 </html>
