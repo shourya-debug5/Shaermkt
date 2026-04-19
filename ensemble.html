@@ -3,34 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Phinix Ensemble - 8 Factor Engine</title>
+    <title>Phinix Ensemble - Self-Healing Flexible Engine</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #050508; --accent: #ffca28; --border: #30363d; --m-clr: #4dabf7; --i-clr: #ff922b; }
+        :root { 
+            --bg: #050508; --accent: #ffca28; --border: #30363d; 
+            --m-clr: #4dabf7; --i-clr: #ff922b; 
+            --up: #2eb872; --down: #fa5252; 
+        }
         body { background: var(--bg); color: #c9d1d9; font-family: monospace; margin: 0; padding: 10px; overflow-x: hidden; }
         
-        /* Nav bar for mobile */
-        .col-bar { display: flex; gap: 8px; margin-bottom: 15px; position: sticky; top: 0; z-index: 100; background: var(--bg); padding: 10px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        /* Navigation Bar */
+        .col-bar { 
+            display: flex; gap: 8px; margin-bottom: 15px; position: sticky; top: 0; 
+            z-index: 100; background: var(--bg); padding: 10px 0; 
+            overflow-x: auto; -webkit-overflow-scrolling: touch; 
+        }
         .col-bar::-webkit-scrollbar { display: none; }
-        .col-btn { flex: 0 0 75px; background: #161b22; border: 1px solid var(--border); color: #8b949e; border-radius: 6px; font-weight: bold; padding: 12px 0; font-size: 11px; }
+        .col-btn { flex: 0 0 75px; background: #161b22; border: 1px solid var(--border); color: #8b949e; border-radius: 6px; font-weight: bold; padding: 12px 0; font-size: 11px; outline: none; }
         .col-btn.active { border-color: var(--accent); color: var(--accent); background: #1c2128; }
 
-        /* Grid: 1 col on phone, 2 on tablet */
+        /* Factor Cards Grid */
         .grid { display: grid; grid-template-columns: 1fr; gap: 15px; width: 100%; }
         @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
         
-        .card { background: #0d1117; border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; height: 380px; overflow: hidden; }
-        .card-header { display: flex; justify-content: space-between; font-size: 10px; height: 30px; align-items: center; border-bottom: 1px solid #1c2128; margin-bottom: 8px; font-weight: bold; }
+        .card { background: #0d1117; border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; height: 380px; overflow: hidden; position: relative; }
+        .card-header { display: flex; justify-content: space-between; font-size: 11px; height: 30px; align-items: center; border-bottom: 1px solid #1c2128; margin-bottom: 8px; font-weight: bold; }
         .stats { display: flex; gap: 5px; margin-bottom: 8px; font-size: 10px; }
         .s-box { flex: 1; background: #161b22; padding: 5px; border-radius: 4px; border: 1px solid #222; text-align: center; }
         
-        .pred-val { color: var(--accent); font-size: 18px; padding: 2px 10px; background: #000; border: 1px solid var(--accent); border-radius: 4px; min-width: 30px; text-align: center; }
+        .pred-val { color: var(--accent); font-size: 18px; padding: 2px 10px; background: #000; border: 1px solid var(--accent); border-radius: 4px; min-width: 35px; text-align: center; }
         
-        .viewport { flex: 1; min-height: 140px; overflow-x: auto; background: #080808; border-radius: 6px; margin-bottom: 8px; border: 1px solid #1a1a1a; }
-        .canvas-inner { height: 100%; min-width: 100%; }
-
+        /* Chart Viewport */
+        .viewport { flex: 1; min-height: 140px; background: #080808; border-radius: 6px; margin-bottom: 8px; border: 1px solid #1a1a1a; position: relative; }
+        
+        /* Prediction Log Feed */
         .feed { background: rgba(0,0,0,0.4); border-radius: 6px; padding: 6px; font-size: 9px; height: 80px; overflow-y: auto; border: 1px solid #222; }
-        .f-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #1a1a1a; }
+        .f-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #1a1a1a; color: #8b949e; }
         .f-item b { color: var(--accent); }
     </style>
 </head>
@@ -47,16 +56,13 @@
         {id: 'i1', name: 'TOP 1 INVERSE', clr: 'var(--i-clr)'},
         {id: 'i3', name: 'TOP 3 INVERSE', clr: 'var(--i-clr)'},
         {id: 'iAll', name: 'ALL INVERSE', clr: 'var(--i-clr)'},
-        {id: 'comb3', name: 'TOP 3 M+I CONSENSUS', clr: '#fff'},
-        {id: 'combAll', name: 'GLOBAL M+I WEIGHTED', clr: 'var(--accent)'}
+        {id: 'comb3', name: 'M+I CONSENSUS (3)', clr: '#fff'},
+        {id: 'combAll', name: 'M+I WEIGHTED (GLOBAL)', clr: 'var(--accent)'}
     ];
 
     let activeCol = 1;
     let charts = {};
-    let scores = JSON.parse(sessionStorage.getItem('ens_scores')) || {};
-    factors.forEach(f => { if(!scores[f.id]) scores[f.id] = [0]; });
-    
-    let lastPreds = JSON.parse(sessionStorage.getItem('ens_preds')) || {};
+    let lastPreds = {};
 
     function init() {
         const grid = document.getElementById('mainGrid');
@@ -68,11 +74,11 @@
             card.innerHTML = `
                 <div class="card-header" style="color:${f.clr}">${f.name} <span id="p-${f.id}" class="pred-val">--</span></div>
                 <div class="stats">
-                    <div class="s-box">TOTAL: <b id="cnt-${f.id}">0</b></div>
-                    <div class="s-box">NET +/-: <b id="pk-${f.id}">0</b></div>
+                    <div class="s-box">MATCHES: <b id="cnt-${f.id}">0</b></div>
+                    <div class="s-box">NET DIFF: <b id="pk-${f.id}">0</b></div>
                 </div>
-                <div class="viewport"><div class="canvas-inner" id="v-${f.id}"><canvas id="c-${f.id}"></canvas></div></div>
-                <div class="feed" id="feed-${f.id}">Scanning...</div>
+                <div class="viewport"><canvas id="c-${f.id}"></canvas></div>
+                <div class="feed" id="feed-${f.id}">Syncing stream...</div>
             `;
             grid.appendChild(card);
             createChart(f.id, f.clr);
@@ -84,21 +90,140 @@
 
     function createChart(id, clr) {
         const ctx = document.getElementById('c-'+id).getContext('2d');
+        const baseColor = getHex(clr);
         charts[id] = new Chart(ctx, {
             type: 'line',
             data: { 
-                labels: scores[id].map((_,i)=>i), 
-                datasets: [{ data: scores[id], borderColor: getHex(clr), borderWidth: 2, tension: 0.1, pointRadius: 0 }] 
+                labels: [], 
+                datasets: [{ 
+                    data: [0], 
+                    borderWidth: 2.5, 
+                    tension: 0.1, 
+                    pointRadius: 0,
+                    segment: {
+                        borderColor: ctx => {
+                            if (!ctx.p0 || !ctx.p1) return baseColor;
+                            const y0 = ctx.p0.parsed.y;
+                            const y1 = ctx.p1.parsed.y;
+                            return y1 > y0 ? '#2eb872' : (y1 < y0 ? '#fa5252' : baseColor);
+                        }
+                    }
+                }] 
             },
             options: { 
-                responsive: true, maintainAspectRatio: false, 
-                animation: false,
+                responsive: true, maintainAspectRatio: false, animation: false,
                 scales: { 
-                    y: { grid: {color:'#1a1d23'}, suggestedMin: -5, suggestedMax: 5 }, 
+                    y: { 
+                        grid: {color:'#1a1d23'}, 
+                        suggestedMin: -15, 
+                        suggestedMax: 15,
+                        ticks: { color: '#8b949e', font: {size: 10} }
+                    }, 
                     x: { display: false } 
                 }, 
                 plugins: { legend: {display: false} } 
             }
+        });
+    }
+
+    function refresh() {
+        const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
+        const target = streams[activeCol] || "";
+        
+        let sessionScores = {};
+        factors.forEach(f => sessionScores[f.id] = [0]);
+
+        if (target.length >= 6) {
+            // Self-Healing Loop: Iterates through the full sequence
+            for (let t = 6; t <= target.length; t++) {
+                const currentChunk = target.substring(0, t);
+                const actual = currentChunk.slice(-1);
+                const trigger = currentChunk.slice(-6, -1);
+                const invTrigger = trigger.split('').map(c => c==='A'?'B':'A').join('');
+
+                let mirrors = [], inverses = [];
+                for (let c = 1; c <= 7; c++) {
+                    const searchData = (c == activeCol) ? target.substring(0, t - 6) : streams[c] || "";
+                    for (let i = 0; i < searchData.length - 5; i++) {
+                        if (searchData.substring(i, i+5) === trigger) mirrors.push(searchData[i+5]);
+                        if (searchData.substring(i, i+5) === invTrigger) inverses.push(searchData[i+5]==='A'?'B':'A');
+                    }
+                }
+
+                const stepPreds = getBatchPreds(mirrors, inverses);
+
+                if (t < target.length) {
+                    factors.forEach(f => {
+                        if (stepPreds[f.id]) {
+                            const last = sessionScores[f.id][sessionScores[f.id].length-1];
+                            sessionScores[f.id].push(last + (stepPreds[f.id] === actual ? 1 : -1));
+                        }
+                    });
+                } else {
+                    lastPreds = stepPreds;
+                    updateUI(mirrors, inverses);
+                }
+            }
+        }
+
+        factors.forEach(f => {
+            const s = sessionScores[f.id];
+            const chart = charts[f.id];
+            
+            chart.data.labels = s.map((_, i) => i);
+            chart.data.datasets[0].data = s;
+
+            // X-Axis Sliding Window (Last 100 entries)
+            chart.options.scales.x.min = Math.max(0, s.length - 100);
+            chart.options.scales.x.max = Math.max(100, s.length);
+
+            // Flexible Y-Axis (Grows beyond +-15 if needed)
+            const minVal = Math.min(...s);
+            const maxVal = Math.max(...s);
+            chart.options.scales.y.min = Math.min(-15, Math.floor(minVal / 5) * 5 - 5);
+            chart.options.scales.y.max = Math.max(15, Math.ceil(maxVal / 5) * 5 + 5);
+
+            chart.update('none');
+
+            const currentNet = s[s.length-1];
+            const netEl = document.getElementById('pk-'+f.id);
+            netEl.innerText = currentNet > 0 ? `+${currentNet}` : currentNet;
+            netEl.style.color = currentNet > 0 ? 'var(--up)' : (currentNet < 0 ? 'var(--down)' : '#8b949e');
+        });
+    }
+
+    function getBatchPreds(m, inv) {
+        return {
+            m1: m.length ? m[m.length-1] : null,
+            m3: getVote(m.slice(-3)),
+            mAll: getVote(m),
+            i1: inv.length ? inv[inv.length-1] : null,
+            i3: getVote(inv.slice(-3)),
+            iAll: getVote(inv),
+            comb3: getVote([...m.slice(-3), ...inv.slice(-3)]),
+            combAll: getVote([...m, ...inv])
+        };
+    }
+
+    function getVote(arr) {
+        if(!arr.length) return null;
+        let v = {A:0, B:0};
+        arr.forEach(p => v[p]++);
+        return v.A === v.B ? null : (v.A > v.B ? 'A' : 'B');
+    }
+
+    function updateUI(m, inv) {
+        factors.forEach(f => {
+            const p = lastPreds[f.id];
+            const el = document.getElementById('p-'+f.id);
+            el.innerText = p || '--';
+            el.style.borderColor = p === 'A' ? 'var(--m-clr)' : (p === 'B' ? 'var(--i-clr)' : 'var(--accent)');
+            
+            const list = f.id.startsWith('m') ? m : (f.id.startsWith('i') ? inv : [...m, ...inv]);
+            document.getElementById('cnt-'+f.id).innerText = list.length;
+            document.getElementById('feed-'+f.id).innerHTML = list.slice(-5).reverse().map(item => `
+                <div class="f-item">Historical Match Found -> <b>${item}</b></div>
+            `).join('');
         });
     }
 
@@ -107,86 +232,6 @@
         if(c.includes('i-clr')) return '#ff922b';
         if(c.includes('accent')) return '#ffca28';
         return '#ffffff';
-    }
-
-    function refresh() {
-        const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
-        const target = streams[activeCol] || "";
-        if(target.length < 6) return;
-
-        const actual = target.slice(-1);
-        const trigger = target.slice(-6, -1);
-        const invTrigger = trigger.split('').map(c => c==='A'?'B':'A').join('');
-
-        // 1. Process previous prediction vs Actual
-        factors.forEach(f => {
-            if(lastPreds[f.id]) {
-                let s = scores[f.id];
-                s.push(s[s.length-1] + (lastPreds[f.id] === actual ? 1 : -1));
-                charts[f.id].data.labels.push("");
-                charts[f.id].update('none');
-                const vp = document.getElementById(`v-${f.id}`).parentNode;
-                vp.scrollLeft = vp.scrollWidth;
-            }
-        });
-
-        // 2. Vertical String Matching Logic
-        let mirrors = [], inverses = [];
-        for (let c = 1; c <= 7; c++) {
-            const data = streams[c] || "";
-            const lag = (c == activeCol) ? 5 : 1;
-            for (let i = 0; i < data.length - 6 - lag; i++) {
-                // Mirror: Match trigger, predict what followed
-                if (data.substring(i, i+5) === trigger) {
-                    mirrors.push({src:c, pred:data[i+5]});
-                }
-                // Inverse: Match the flipped trigger, predict the flipped result
-                if (data.substring(i, i+5) === invTrigger) {
-                    inverses.push({src:c, pred:data[i+5]==='A'?'B':'A'});
-                }
-            }
-        }
-
-        // 3. Update the 8 Predictors
-        lastPreds = {
-            m1: mirrors.length ? mirrors[mirrors.length-1].pred : null,
-            m3: getVote(mirrors.slice(-3)),
-            mAll: getVote(mirrors),
-            i1: inverses.length ? inverses[inverses.length-1].pred : null,
-            i3: getVote(inverses.slice(-3)),
-            iAll: getVote(inverses),
-            comb3: getVote([...mirrors.slice(-3), ...inverses.slice(-3)]),
-            combAll: getVote([...mirrors, ...inverses])
-        };
-
-        sessionStorage.setItem('ens_preds', JSON.stringify(lastPreds));
-        sessionStorage.setItem('ens_scores', JSON.stringify(scores));
-
-        // Update UI Boxes
-        updateUI('m1', mirrors.slice(-1), lastPreds.m1);
-        updateUI('m3', mirrors.slice(-3), lastPreds.m3);
-        updateUI('mAll', mirrors, lastPreds.mAll);
-        updateUI('i1', inverses.slice(-1), lastPreds.i1);
-        updateUI('i3', inverses.slice(-3), lastPreds.i3);
-        updateUI('iAll', inverses, lastPreds.iAll);
-        updateUI('comb3', [...mirrors.slice(-3), ...inverses.slice(-3)], lastPreds.comb3);
-        updateUI('combAll', [...mirrors, ...inverses], lastPreds.combAll);
-    }
-
-    function getVote(arr) {
-        if(!arr.length) return null;
-        let v = {A:0, B:0};
-        arr.forEach(d => v[d.pred]++);
-        return v.A === v.B ? null : (v.A > v.B ? 'A' : 'B');
-    }
-
-    function updateUI(id, data, pred) {
-        document.getElementById('p-'+id).innerText = pred || '--';
-        document.getElementById('cnt-'+id).innerText = data.length;
-        document.getElementById('pk-'+id).innerText = scores[id][scores[id].length - 1]; // Net score
-        document.getElementById('feed-'+id).innerHTML = data.slice(-8).reverse().map(d => `
-            <div class="f-item">C${d.src} Found Match -> <b>${d.pred}</b></div>
-        `).join('') || "No active matches.";
     }
 
     function renderNav() {
