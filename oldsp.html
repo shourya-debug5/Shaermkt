@@ -9,214 +9,283 @@
             --bg: #05070a; --panel: #0d1117; --accent: #ffca28;
             --up: #2eb872; --down: #fa5252; --border: #30363d;
         }
-        body { background: var(--bg); color: #c9d1d9; font-family: 'Courier New', monospace; margin: 0; padding: 10px; overflow-x: hidden; }
+        body { background: var(--bg); color: #c9d1d9; font-family: 'Courier New', monospace; margin: 0; padding: 10px; }
 
         /* HEADER */
-        .header { position: sticky; top: 0; background: var(--panel); z-index: 1000; border-bottom: 2px solid var(--border); margin: -10px -10px 15px -10px; padding: 12px; }
-        .col-bar { display: flex; gap: 5px; overflow-x: auto; margin-bottom: 10px; }
-        .col-btn { flex: 1; min-width: 65px; background: #161b22; border: 1px solid var(--border); color: #8b949e; padding: 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .header { position: sticky; top: 0; background: var(--panel); z-index: 100; border-bottom: 2px solid var(--border); margin: -10px -10px 15px -10px; padding: 12px; display: flex; align-items: center; gap: 10px; }
+        .col-bar { display: flex; gap: 5px; overflow-x: auto; flex: 1; }
+        .col-btn { flex: 1; min-width: 75px; background: #161b22; border: 1px solid var(--border); color: #8b949e; padding: 10px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .col-btn.active { border-color: var(--accent); color: var(--accent); }
+        .manage-btn { background: var(--accent); border: none; border-radius: 4px; padding: 10px; font-weight: bold; font-size: 11px; color: #000; }
 
-        .input-group { display: flex; gap: 5px; background: #000; padding: 8px; border-radius: 6px; }
-        input { flex: 1; background: transparent; border: 1px solid #333; color: var(--accent); padding: 5px; font-size: 12px; outline: none; text-transform: uppercase; }
-
-        /* ANALYTICS BOXES */
-        .dashboard { display: flex; flex-direction: column; gap: 15px; }
-        .box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; position: relative; }
-        .box-weighted { border: 2px solid var(--accent); background: rgba(255, 202, 40, 0.05); }
-
-        .box-header { display: flex; justify-content: space-between; align-items: flex-start; }
-        .label { font-size: 10px; color: var(--accent); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        .signal { font-size: 48px; font-weight: bold; color: #fff; line-height: 1; margin-top: 5px; }
+        /* DASHBOARD LAYOUT - BOXES ENLARGED */
+        .dashboard { display: flex; flex-direction: column; gap: 15px; padding-bottom: 50px; }
+        .box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; min-height: 400px; }
         
-        /* GRAPH AREA */
-        .graph-wrap { height: 70px; width: 100%; background: #000; border-radius: 6px; border: 1px solid #1a1d23; margin: 12px 0; }
-        svg { width: 100%; height: 100%; display: block; }
-        .zero-line { stroke: #1a1d23; stroke-width: 1; stroke-dasharray: 4; }
+        .box-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .label-group { display: flex; flex-direction: column; }
+        .label { font-size: 11px; color: var(--accent); font-weight: bold; text-transform: uppercase; }
+        
+        .signal { font-size: 54px; font-weight: bold; color: #fff; line-height: 1; }
+        .meta-info { text-align: right; }
+        .meta-val { font-size: 22px; color: #fff; font-weight: bold; }
 
-        /* STATS */
-        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; border-top: 1px solid #1a1d23; padding-top: 10px; }
-        .st-item { text-align: center; }
-        .st-label { font-size: 8px; color: #555; display: block; }
-        .st-val { font-size: 14px; font-weight: bold; color: #fff; }
+        /* LARGE GRAPH AREA */
+        .graph-wrap { height: 220px; width: 100%; background: #000; border-radius: 8px; border: 1px solid #1a1d23; margin: 15px 0; overflow-x: auto; position: relative; }
+        svg.slidable-graph { width: 3000px; height: 100%; display: block; overflow: visible; }
+        .zero-line { stroke: #333; stroke-width: 1; stroke-dasharray: 6; }
+        
+        /* PEAK/LOW LABELS */
+        .point-label { fill: #fff; font-size: 10px; font-weight: bold; font-family: sans-serif; }
+
+        /* MULTI-ROW STATS GRID */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 1px solid #1a1d23; padding-top: 12px; }
+        .st-item { display: flex; flex-direction: column; align-items: center; background: #161b22; padding: 8px 2px; border-radius: 6px; border: 1px solid var(--border); }
+        .st-val { font-size: 14px; font-weight: bold; color: #fff; text-align: center; }
+        .st-label { font-size: 8px; color: #666; text-align: center; text-transform: uppercase; margin-top: 2px; }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 85%; background: var(--panel); z-index: 2000; border-top: 3px solid var(--accent); border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box; }
+        .modal.active { display: block; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .ptn-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .form-row { display: flex; gap: 8px; width: 100%; }
+        .ptn-form input { background: #000; border: 1px solid var(--border); color: var(--accent); padding: 12px; border-radius: 4px; font-size: 14px; outline: none; flex: 1; }
+        .add-btn { background: var(--up); color: #000; border: none; padding: 0 25px; border-radius: 4px; font-weight: bold; }
+        .ptn-list { height: calc(100% - 180px); overflow-y: auto; }
+        .ptn-item { background: #161b22; border: 1px solid var(--border); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <div class="col-bar" id="colBar"></div>
-        <div class="input-group">
-            <input type="text" id="trIn" placeholder="TRIG" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
-            <input type="text" id="ptIn" placeholder="PTN" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
-            <button onclick="savePtn()" style="background:var(--accent); border:none; border-radius:4px; font-weight:bold; padding:0 15px; color:#000;">SAVE</button>
-        </div>
+        <button class="manage-btn" onclick="toggleModal(true)">PATTERNS</button>
     </div>
 
     <div class="dashboard">
         <div class="box">
             <div class="box-header">
-                <div><span class="label">🏆 Top 1 Ranker</span><div class="signal" id="v-top1">--</div></div>
-                <div style="text-align:right"><span class="label">LAG</span><div id="l-top1" style="font-size:22px; color:#fff;">-</div></div>
+                <div class="label-group">
+                    <span class="label">🏆 Top Lag Ranker</span>
+                    <div class="signal" id="v-top1">--</div>
+                </div>
+                <div class="meta-info">
+                    <span class="label">LAG</span>
+                    <div class="meta-val" id="l-top1">-</div>
+                </div>
             </div>
             <div class="graph-wrap">
-                <svg id="g-top1" viewBox="0 0 100 40">
-                    <line x1="0" y1="20" x2="100" y2="20" class="zero-line"/>
-                    <polyline points="" fill="none" stroke="var(--up)" stroke-width="2" vector-effect="non-scaling-stroke" />
+                <svg id="g-top1" class="slidable-graph" viewBox="0 0 3000 100">
+                    <line x1="0" y1="50" x2="3000" y2="50" class="zero-line"/>
+                    <polyline points="" fill="none" stroke="var(--up)" stroke-width="2" />
+                    <text id="peak-top1" class="point-label"></text>
+                    <text id="low-top1" class="point-label"></text>
                 </svg>
             </div>
-            <div class="stats">
-                <div class="st-item"><span class="st-label">WINS</span><span class="st-val" id="w-top1">0</span></div>
-                <div class="st-item"><span class="st-label">BREAKS</span><span class="st-val" id="b-top1">0</span></div>
-                <div class="st-item"><span class="st-label">PEAK</span><span class="st-val" id="p-top1">0</span></div>
+            <div class="stats-grid">
+                <div class="st-item"><span class="st-val" id="w-top1">0</span><span class="st-label">Wins</span></div>
+                <div class="st-item"><span class="st-val" id="b-top1">0</span><span class="st-label">Breaks</span></div>
+                <div class="st-item"><span class="st-val" id="p-top1">0</span><span class="st-label">PNL Peak</span></div>
             </div>
         </div>
 
         <div class="box">
             <div class="box-header">
-                <div><span class="label">👥 Top 3 Consensus</span><div class="signal" id="v-top3">--</div></div>
-                <div style="text-align:right"><span class="label">CONF</span><div id="c-top3" style="font-size:22px; color:#fff;">0%</div></div>
+                <div class="label-group">
+                    <span class="label">👥 All Consensus</span>
+                    <div class="signal" id="v-cons">--</div>
+                </div>
+                <div class="meta-info">
+                    <span class="label">TYPES matched</span>
+                    <div class="meta-val" id="t-cons">0</div>
+                </div>
             </div>
             <div class="graph-wrap">
-                <svg id="g-top3" viewBox="0 0 100 40">
-                    <line x1="0" y1="20" x2="100" y2="20" class="zero-line"/>
-                    <polyline points="" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" />
+                <svg id="g-cons" class="slidable-graph" viewBox="0 0 3000 100">
+                    <line x1="0" y1="50" x2="3000" y2="50" class="zero-line"/>
+                    <polyline points="" fill="none" stroke="var(--accent)" stroke-width="2" />
+                    <text id="peak-cons" class="point-label"></text>
+                    <text id="low-cons" class="point-label"></text>
                 </svg>
             </div>
-            <div class="stats">
-                <div class="st-item"><span class="st-label">WINS</span><span class="st-val" id="w-top3">0</span></div>
-                <div class="st-item"><span class="st-label">BREAKS</span><span class="st-val" id="b-top3">0</span></div>
-                <div class="st-item"><span class="st-label">PEAK</span><span class="st-val" id="p-top3">0</span></div>
+            <div class="stats-grid">
+                <div class="st-item"><span class="st-val" id="w-cons">0</span><span class="st-label">Wins</span></div>
+                <div class="st-item"><span class="st-val" id="b-cons">0</span><span class="st-label">Breaks</span></div>
+                <div class="st-item"><span class="st-val" id="conf-cons">0%</span><span class="st-label">Conf</span></div>
+                <div class="st-item"><span class="st-val" id="a-cons">0</span><span class="st-label">Active</span></div>
+                <div class="st-item"><span class="st-val" id="m-cons">0</span><span class="st-label">Match</span></div>
+                <div class="st-item"><span class="st-val" id="tr-cons">0</span><span class="st-label">Trend</span></div>
             </div>
         </div>
 
-        <div class="box box-weighted">
+        <div class="box">
             <div class="box-header">
-                <div><span class="label">⚖️ Weighted All</span><div class="signal" id="v-weight" style="color:var(--accent)">--</div></div>
-                <div style="text-align:right"><span class="label">ACTIVE</span><div id="a-weight" style="font-size:22px; color:#fff;">0</div></div>
+                <div class="label-group">
+                    <span class="label">🔥 Top 3 Streaks</span>
+                    <div class="signal" id="v-streak">--</div>
+                </div>
+                <div class="meta-info">
+                    <span class="label">STREAK AGG</span>
+                    <div class="meta-val" id="s-streak">0</div>
+                </div>
             </div>
             <div class="graph-wrap">
-                <svg id="g-weight" viewBox="0 0 100 40">
-                    <line x1="0" y1="20" x2="100" y2="20" class="zero-line"/>
-                    <polyline points="" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" />
+                <svg id="g-streak" class="slidable-graph" viewBox="0 0 3000 100">
+                    <line x1="0" y1="50" x2="3000" y2="50" class="zero-line"/>
+                    <polyline points="" fill="none" stroke="#ff69b4" stroke-width="2" />
+                    <text id="peak-streak" class="point-label"></text>
+                    <text id="low-streak" class="point-label"></text>
                 </svg>
             </div>
-            <div class="stats">
-                <div class="st-item"><span class="st-label">WINS</span><span class="st-val" id="w-weight">0</span></div>
-                <div class="st-item"><span class="st-label">BREAKS</span><span class="st-val" id="b-weight">0</span></div>
-                <div class="st-item"><span class="st-label">PEAK</span><span class="st-val" id="p-weight">0</span></div>
+            <div class="stats-grid">
+                <div class="st-item"><span class="st-val" id="w-streak">0</span><span class="st-label">Wins</span></div>
+                <div class="st-item"><span class="st-val" id="b-streak">0</span><span class="st-label">Breaks</span></div>
+                <div class="st-item"><span class="st-val" id="p-streak">0</span><span class="st-label">PNL Peak</span></div>
             </div>
         </div>
     </div>
 
+    <div id="ptnModal" class="modal">
+        <div class="modal-header">
+            <h3 style="margin:0; color:var(--accent);">PATTERN ENGINE</h3>
+            <button onclick="toggleModal(false)" style="background:none; border:none; color:var(--down); font-size:20px;">✕</button>
+        </div>
+        <div class="ptn-form">
+            <div class="form-row">
+                <input type="text" id="trIn" placeholder="TRIGGER" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
+                <button class="add-btn" onclick="savePtn()">SAVE</button>
+            </div>
+            <div class="form-row">
+                <input type="text" id="ptIn" placeholder="PATTERN" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
+            </div>
+        </div>
+        <div class="ptn-list" id="ptnList"></div>
+    </div>
+
 <script>
     let currentCol = 1;
-    let lags = [1, 2, 3, 5, 8, 10, 12, 15, 20, 25];
+    let lags = [1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
     let ptns = JSON.parse(localStorage.getItem('sentinel_ptns')) || [];
 
+    function toggleModal(show) { document.getElementById('ptnModal').classList.toggle('active', show); if(show) renderPatterns(); }
     function savePtn() {
-        const t = document.getElementById('trIn').value;
-        const p = document.getElementById('ptIn').value;
-        if(t && p) {
-            ptns.push({t, p});
-            localStorage.setItem('sentinel_ptns', JSON.stringify(ptns));
-            refresh();
-        }
+        const t = document.getElementById('trIn').value.toUpperCase().trim(), p = document.getElementById('ptIn').value.toUpperCase().trim();
+        if(t && p) { ptns.push({t, p}); localStorage.setItem('sentinel_ptns', JSON.stringify(ptns)); renderPatterns(); refresh(); }
     }
+    function deletePtn(index) { ptns.splice(index, 1); localStorage.setItem('sentinel_ptns', JSON.stringify(ptns)); renderPatterns(); refresh(); }
+    function renderPatterns() {
+        document.getElementById('ptnList').innerHTML = ptns.map((p, i) => `<div class="ptn-item"><div style="font-size:12px;">IF <b>${p.t}</b> THEN <b>${p.p}</b></div><button onclick="deletePtn(${i})" style="color:var(--down); background:none; border:none;">X</button></div>`).join('');
+    }
+
+    function setCol(n) { currentCol = n; document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn'+n).classList.add('active'); refresh(); }
 
     function init() {
-        let barHtml = "";
-        for(let i=1; i<=7; i++) barHtml += `<button class="col-btn ${i==1?'active':''}" onclick="setCol(${i})" id="btn${i}">STRM ${i}</button>`;
-        document.getElementById('colBar').innerHTML = barHtml;
-        refresh();
+        let barHtml = ""; for(let i=1; i<=7; i++) barHtml += `<button class="col-btn ${i==currentCol?'active':''}" onclick="setCol(${i})" id="btn${i}">STRM ${i}</button>`;
+        document.getElementById('colBar').innerHTML = barHtml; refresh();
         window.addEventListener('storage', (e) => { if(e.key === 'phinix_stream') refresh(); });
-    }
-
-    function setCol(n) {
-        currentCol = n;
-        document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn'+n).classList.add('active');
-        refresh();
     }
 
     function refresh() {
         const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
         const data = (streams[currentCol] || "").split('');
-        if(data.length < 5) return;
+        if(data.length < 2) return;
 
         let activeLags = [];
         lags.forEach(lag => {
+            if (data.length <= lag) return;
             let rel = "";
             for(let i=lag; i<data.length; i++) rel += (data[i] === data[i-lag] ? 'A' : 'B');
 
-            let streak = 0, decision = null;
             ptns.forEach(item => {
-                const full = item.t + item.p;
-                if(rel.endsWith(full)) {
-                    let count = 0, tmp = rel;
-                    while(tmp.endsWith(full)) { count++; tmp = tmp.slice(0, -full.length); }
-                    if(count > 0) { streak = count; decision = item.p.slice(-1); }
+                if(rel.endsWith(item.t)) {
+                    let matchChar = data[data.length - lag];
+                    let play = (item.p === 'A') ? matchChar : (matchChar === 'A' ? 'B' : 'A');
+                    let pnl = [0], curP = 0, streak = 0;
+                    rel.split('').forEach(c => { 
+                        let gain = (c==='A'?1:-1); curP += gain; pnl.push(curP);
+                        streak = (gain > 0) ? streak + 1 : 0;
+                    });
+                    activeLags.push({ lag, pnl, play, tLen: item.t.length, streak, patternKey: item.t+item.p });
                 }
             });
-
-            let pnl = [0], curP = 0;
-            rel.slice(-30).split('').forEach(c => { curP += (c==='A'?1:-1); pnl.push(curP); });
-
-            let matchChar = data[data.length - lag];
-            let play = (decision === 'A') ? matchChar : (matchChar === 'A' ? 'B' : 'A');
-
-            if (streak > 0) activeLags.push({ lag, streak, pnl, play });
         });
 
-        activeLags.sort((a,b) => b.streak - a.streak);
-        
         if (activeLags.length > 0) {
-            // TOP 1
+            activeLags.sort((a,b) => b.tLen - a.tLen);
             const t1 = activeLags[0];
             updateCard('top1', t1.play, t1.pnl);
             document.getElementById('l-top1').innerText = t1.lag;
 
-            // TOP 3
-            const t3 = activeLags.slice(0,3);
-            let v3Votes = {A:0, B:0}; t3.forEach(x => v3Votes[x.play]++);
-            let v3 = v3Votes.A >= v3Votes.B ? 'A' : 'B';
-            updateCard('top3', v3, combinePnls(t3));
-            document.getElementById('c-top3').innerText = Math.round((Math.max(v3Votes.A, v3Votes.B)/t3.length)*100) + "%";
+            let votes = {A:0, B:0}, uniqueTypes = new Set();
+            activeLags.forEach(x => { votes[x.play]++; uniqueTypes.add(x.patternKey); });
+            let winner = votes.A >= votes.B ? 'A' : 'B';
+            updateCard('cons', winner, t1.pnl);
+            document.getElementById('conf-cons').innerText = Math.round((votes[winner] / activeLags.length) * 100) + "%";
+            document.getElementById('t-cons').innerText = uniqueTypes.size;
+            document.getElementById('a-cons').innerText = activeLags.length;
+            document.getElementById('m-cons').innerText = activeLags.length; // Active matches
+            document.getElementById('tr-cons').innerText = t1.pnl[t1.pnl.length-1];
 
-            // WEIGHTED
-            let wVotes = {A:0, B:0}; activeLags.forEach(x => wVotes[x.play] += x.streak);
-            let vw = wVotes.A >= wVotes.B ? 'A' : 'B';
-            updateCard('weight', vw, combinePnls(activeLags));
-            document.getElementById('a-weight').innerText = activeLags.length;
+            let top3 = [...activeLags].sort((a,b) => b.streak - a.streak).slice(0, 3);
+            let sVotes = {A:0, B:0}, aggS = 0;
+            top3.forEach(x => { sVotes[x.play]++; aggS += x.streak; });
+            let sWinner = sVotes.A >= sVotes.B ? 'A' : 'B';
+            updateCard('streak', sWinner, top3[0].pnl);
+            document.getElementById('s-streak').innerText = aggS;
         }
     }
 
-    function combinePnls(lags) {
-        let combined = new Array(31).fill(0);
-        lags.forEach(l => l.pnl.forEach((p, i) => combined[i] += p));
-        return combined;
-    }
-
     function updateCard(id, play, pnl) {
-        document.getElementById(`v-${id}`).innerText = play;
+        const sigEl = document.getElementById(`v-${id}`);
+        sigEl.innerText = play; sigEl.style.color = (play === 'A') ? 'var(--up)' : 'var(--down)';
+        const history = pnl.slice(-300);
+        let wins = 0, breaks = 0;
+        for(let i=1; i<history.length; i++) { if(history[i] > history[i-1]) wins++; else breaks++; }
         
-        let wins = 0, breaks = 0, cur = 0;
-        pnl.forEach(v => {
-            if(v > cur) wins++; else if(v < cur) breaks++;
-            cur = v;
-        });
-
         document.getElementById(`w-${id}`).innerText = wins;
         document.getElementById(`b-${id}`).innerText = breaks;
-        document.getElementById(`p-${id}`).innerText = Math.max(...pnl.map(Math.abs));
+        
+        // PNL Peak Logic
+        const maxAbs = Math.max(...history.map(Math.abs));
+        if(document.getElementById(`p-${id}`)) document.getElementById(`p-${id}`).innerText = maxAbs;
 
         const poly = document.querySelector(`#g-${id} polyline`);
-        const max = Math.max(...pnl.map(Math.abs), 5);
-        const step = 100 / (pnl.length - 1);
-        poly.setAttribute('points', pnl.map((v, i) => `${i*step},${20 - (v * (18/max))}`).join(' '));
-    }
+        const peakTxt = document.getElementById(`peak-${id}`);
+        const lowTxt = document.getElementById(`low-${id}`);
 
+        const range = Math.max(25, maxAbs + 10);
+        const scale = 45 / range;
+        
+        let maxVal = -Infinity, minVal = Infinity;
+        let maxIdx = 0, minIdx = 0;
+
+        const points = history.map((v, i) => {
+            const x = i * 10;
+            const y = 50 - (v * scale);
+            if(v > maxVal) { maxVal = v; maxIdx = i; }
+            if(v < minVal) { minVal = v; minIdx = i; }
+            return `${x},${y}`;
+        }).join(' ');
+
+        poly.setAttribute('points', points);
+
+        // Update Peak/Low labels on graph
+        if(peakTxt) {
+            peakTxt.setAttribute('x', maxIdx * 10);
+            peakTxt.setAttribute('y', 50 - (maxVal * scale) - 5);
+            peakTxt.textContent = maxVal;
+        }
+        if(lowTxt) {
+            lowTxt.setAttribute('x', minIdx * 10);
+            lowTxt.setAttribute('y', 50 - (minVal * scale) + 12);
+            lowTxt.textContent = minVal;
+        }
+
+        const wrap = poly.closest('.graph-wrap');
+        setTimeout(() => { wrap.scrollLeft = wrap.scrollWidth; }, 50);
+    }
     init();
 </script>
-<script src="nav.js"></script>
 </body>
 </html>
