@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Phinix Sentinel - Ensemble Analytics</title>
+    <title>Phinix Sentinel - Ensemble Analytics Ultra</title>
     <style>
         :root {
             --bg: #05070a; --panel: #0d1117; --accent: #ffca28;
@@ -16,11 +16,11 @@
         .col-bar { display: flex; gap: 5px; overflow-x: auto; flex: 1; }
         .col-btn { flex: 1; min-width: 75px; background: #161b22; border: 1px solid var(--border); color: #8b949e; padding: 10px; border-radius: 4px; font-size: 11px; font-weight: bold; }
         .col-btn.active { border-color: var(--accent); color: var(--accent); }
-        .manage-btn { background: var(--accent); border: none; border-radius: 4px; padding: 10px; font-weight: bold; font-size: 11px; color: #000; }
+        .manage-btn { background: var(--accent); border: none; border-radius: 4px; padding: 10px; font-weight: bold; font-size: 11px; color: #000; cursor: pointer; }
 
         /* DASHBOARD LAYOUT */
         .dashboard { display: flex; flex-direction: column; gap: 15px; padding-bottom: 50px; }
-        .box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; min-height: 400px; }
+        .box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; min-height: 420px; }
         
         .box-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
         .label-group { display: flex; flex-direction: column; }
@@ -30,11 +30,10 @@
         .meta-info { text-align: right; }
         .meta-val { font-size: 22px; color: #fff; font-weight: bold; }
 
-        /* LARGE GRAPH AREA */
-        .graph-wrap { height: 220px; width: 100%; background: #000; border-radius: 8px; border: 1px solid #1a1d23; margin: 15px 0; overflow-x: auto; position: relative; }
-        svg.slidable-graph { width: 3000px; height: 100%; display: block; overflow: visible; }
+        /* GRAPH AREA */
+        .graph-wrap { height: 220px; width: 100%; background: #000; border-radius: 8px; border: 1px solid #1a1d23; margin: 15px 0; overflow: hidden; position: relative; }
+        svg.slidable-graph { width: 100%; height: 100%; display: block; }
         .zero-line { stroke: #333; stroke-width: 1; stroke-dasharray: 6; }
-        
         .point-label { fill: #fff; font-size: 10px; font-weight: bold; font-family: sans-serif; }
 
         /* STATS GRID */
@@ -55,6 +54,7 @@
         .neg-btn { background: var(--neg); color: #fff; }
         .ptn-list { margin-top: 15px; }
         .ptn-item { background: #161b22; border: 1px solid var(--border); padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        h5 { color: var(--accent); margin: 10px 0; text-transform: uppercase; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -68,7 +68,7 @@
         <div class="box">
             <div class="box-header">
                 <div class="label-group">
-                    <span class="label">🏆 Longest Lock (Top 1)</span>
+                    <span class="label">🏆 Top Lag Ranker</span>
                     <div class="signal" id="v-top1">--</div>
                 </div>
                 <div class="meta-info">
@@ -77,8 +77,8 @@
                 </div>
             </div>
             <div class="graph-wrap">
-                <svg id="g-top1" class="slidable-graph" viewBox="0 0 3000 100">
-                    <line x1="0" y1="50" x2="3000" y2="50" class="zero-line"/>
+                <svg id="g-top1" class="slidable-graph" viewBox="0 0 600 100" preserveAspectRatio="none">
+                    <line x1="0" y1="50" x2="600" y2="50" class="zero-line"/>
                     <polyline points="" fill="none" stroke="var(--up)" stroke-width="2" />
                     <text id="peak-top1" class="point-label"></text>
                     <text id="low-top1" class="point-label"></text>
@@ -98,13 +98,13 @@
                     <div class="signal" id="v-cons">--</div>
                 </div>
                 <div class="meta-info">
-                    <span class="label">Matched</span>
+                    <span class="label">TYPES matched</span>
                     <div class="meta-val" id="t-cons">0</div>
                 </div>
             </div>
             <div class="graph-wrap">
-                <svg id="g-cons" class="slidable-graph" viewBox="0 0 3000 100">
-                    <line x1="0" y1="50" x2="3000" y2="50" class="zero-line"/>
+                <svg id="g-cons" class="slidable-graph" viewBox="0 0 600 100" preserveAspectRatio="none">
+                    <line x1="0" y1="50" x2="600" y2="50" class="zero-line"/>
                     <polyline points="" fill="none" stroke="var(--accent)" stroke-width="2" />
                     <text id="peak-cons" class="point-label"></text>
                     <text id="low-cons" class="point-label"></text>
@@ -113,7 +113,10 @@
             <div class="stats-grid">
                 <div class="st-item"><span class="st-val" id="w-cons">0</span><span class="st-label">Wins</span></div>
                 <div class="st-item"><span class="st-val" id="b-cons">0</span><span class="st-label">Breaks</span></div>
-                <div class="st-item"><span class="st-val" id="tr-cons">0</span><span class="st-label">Cont. PNL</span></div>
+                <div class="st-item"><span class="st-val" id="conf-cons">0%</span><span class="st-label">Conf</span></div>
+                <div class="st-item"><span class="st-val" id="a-cons">0</span><span class="st-label">Active</span></div>
+                <div class="st-item"><span class="st-val" id="tr-cons">0</span><span class="st-label">Trend</span></div>
+                <div class="st-item"><span class="st-val" id="m-cons">0</span><span class="st-label">PNL Peak</span></div>
             </div>
         </div>
 
@@ -129,8 +132,8 @@
                 </div>
             </div>
             <div class="graph-wrap">
-                <svg id="g-streak" class="slidable-graph" viewBox="0 0 3000 100">
-                    <line x1="0" y1="50" x2="3000" y2="50" class="zero-line"/>
+                <svg id="g-streak" class="slidable-graph" viewBox="0 0 600 100" preserveAspectRatio="none">
+                    <line x1="0" y1="50" x2="600" y2="50" class="zero-line"/>
                     <polyline points="" fill="none" stroke="#ff69b4" stroke-width="2" />
                     <text id="peak-streak" class="point-label"></text>
                     <text id="low-streak" class="point-label"></text>
@@ -151,14 +154,14 @@
         </div>
 
         <div class="form-section">
-            <h4 style="color:var(--up); margin-top:0;">POSITIVE PATTERNS</h4>
+            <h4 style="color:var(--up); margin-top:0;">POSITIVE PATTERNS (IF/THEN)</h4>
             <div class="ptn-form">
                 <div class="form-row">
-                    <input type="text" id="trIn" placeholder="TRIGGER" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
+                    <input type="text" id="trIn" placeholder="TRIGGER (e.g. AA)" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
                     <button class="add-btn" onclick="savePtn('pos')">SAVE</button>
                 </div>
                 <div class="form-row">
-                    <input type="text" id="ptIn" placeholder="PATTERN" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
+                    <input type="text" id="ptIn" placeholder="THEN PREDICT (A or B)" maxlength="1" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
                 </div>
             </div>
         </div>
@@ -171,7 +174,7 @@
                     <button class="add-btn neg-btn" onclick="savePtn('neg')">BLOCK</button>
                 </div>
                 <div class="form-row">
-                    <input type="text" id="nptIn" placeholder="NEG PATTERN" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
+                    <input type="text" id="nptIn" placeholder="RESULT TO BLOCK" maxlength="1" oninput="this.value=this.value.replace(/[^ab]/gi,'').toUpperCase()">
                 </div>
             </div>
         </div>
@@ -180,20 +183,17 @@
     </div>
 
 <script>
-    // --- PHASE 1: INITIALIZATION & DATA MANAGEMENT ---
     let currentCol = 1;
     const lags = [1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
     let ptns = JSON.parse(localStorage.getItem('sentinel_ptns_pos')) || [];
     let negs = JSON.parse(localStorage.getItem('sentinel_ptns_neg')) || [];
-
-    // Lock-On State persistence
     let activeLocks = {}; 
     
-    // Global continuous PNL stats
+    // Persistent stats tracking across refreshes
     let globalStats = {
-        top1:   { pnl: [0], w: 0, b: 0, lastPred: null, lastLag: null },
-        cons:   { pnl: [0], w: 0, b: 0, lastPred: null, lastLag: null },
-        streak: { pnl: [0], w: 0, b: 0, lastPred: null, lastLag: null }
+        top1:   { pnl: [0], w: 0, b: 0, lastPred: null, peak: 0 },
+        cons:   { pnl: [0], w: 0, b: 0, lastPred: null, peak: 0 },
+        streak: { pnl: [0], w: 0, b: 0, lastPred: null, peak: 0 }
     };
 
     function toggleModal(show) { 
@@ -206,10 +206,12 @@
             const t = document.getElementById('trIn').value.trim(), p = document.getElementById('ptIn').value.trim();
             if(t && p) ptns.push({t, p}); 
             localStorage.setItem('sentinel_ptns_pos', JSON.stringify(ptns));
+            document.getElementById('trIn').value = ''; document.getElementById('ptIn').value = '';
         } else {
             const t = document.getElementById('ntrIn').value.trim(), p = document.getElementById('nptIn').value.trim();
             if(t && p) negs.push({t, p}); 
             localStorage.setItem('sentinel_ptns_neg', JSON.stringify(negs));
+            document.getElementById('ntrIn').value = ''; document.getElementById('nptIn').value = '';
         }
         renderPatterns(); refresh();
     }
@@ -223,63 +225,87 @@
     function renderPatterns() {
         let html = "<h5>Active Positives</h5>";
         html += ptns.map((p, i) => `<div class="ptn-item"><div>IF <b>${p.t}</b> THEN <b>${p.p}</b></div><button onclick="deletePtn(${i}, 'pos')" style="color:var(--down); background:none; border:none;">✕</button></div>`).join('');
-        html += "<h5 style='margin-top:20px;'>Active Negatives</h5>";
+        html += "<h5>Active Negatives</h5>";
         html += negs.map((p, i) => `<div class="ptn-item" style="border-color:var(--neg)"><div>BLOCK <b>${p.t}${p.p}</b></div><button onclick="deletePtn(${i}, 'neg')" style="color:var(--down); background:none; border:none;">✕</button></div>`).join('');
         document.getElementById('ptnList').innerHTML = html;
     }
 
-    // --- PHASE 2: CORE ENGINE (LOCK-ON & SKIP LOGIC) ---
     function refresh() {
         const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
         const data = (streams[currentCol] || "").split('');
-        if(data.length < 5) return;
+        if(data.length < 2) return;
+        const lastActual = data[data.length - 1];
 
         let activeSignals = [];
+        let uniquePatternsMatched = new Set();
 
         lags.forEach(lag => {
             if (data.length <= lag) return;
+            
+            // Calculate relative stream for this lag (A=Same, B=Change)
             let rel = "";
             for(let i=lag; i<data.length; i++) rel += (data[i] === data[i-lag] ? 'A' : 'B');
 
-            // SKIP LOGIC 1: Negative Blocker
-            let isMuted = negs.some(n => rel.endsWith(n.t + n.p));
-            if(isMuted) {
-                delete activeLocks[lag]; // Break positive lock if negative pattern appears
+            // 1. Check Negative Blockers
+            if(negs.some(n => rel.endsWith(n.t + n.p))) { 
+                delete activeLocks[lag]; 
                 return; 
             }
 
-            // SKIP LOGIC 2: Check Existing Lock-On
+            // 2. Check Existing Locks (Continuation logic)
             if(activeLocks[lag]) {
                 const lock = activeLocks[lag];
                 if(rel.endsWith(lock.fullPtn)) {
-                    // Pattern continues, use it and skip new search
                     let play = getPrediction(data, lag, lock.p);
-                    activeSignals.push({ lag, play, streak: countStreak(rel, lock.fullPtn), ptn: lock.fullPtn });
+                    let streak = countStreak(rel, lock.fullPtn);
+                    activeSignals.push({ lag, play, streak, ptnKey: lock.fullPtn });
+                    uniquePatternsMatched.add(lock.fullPtn);
                     return; 
-                } else {
-                    delete activeLocks[lag]; // Pattern broke
-                }
+                } else delete activeLocks[lag];
             }
 
-            // PHASE 3: SEARCH NEW TRIGGER
+            // 3. Scan for New Positive Pattern Triggers
             ptns.forEach(item => {
                 let full = item.t + item.p;
                 if(rel.endsWith(full)) {
                     let play = getPrediction(data, lag, item.p);
+                    activeLocks[lag] = { fullPtn: full, p: item.p };
                     let streak = countStreak(rel, full);
-                    activeLocks[lag] = { fullPtn: full, p: item.p }; // Lock On
-                    activeSignals.push({ lag, play, streak, ptn: full });
+                    activeSignals.push({ lag, play, streak, ptnKey: full });
+                    uniquePatternsMatched.add(full);
                 }
             });
         });
 
+        // Update Dashboard Boxes
         if(activeSignals.length > 0) {
-            updateDashboard(activeSignals, data[data.length - 1]);
+            // Top 1: Sort by Streak then Pattern Length
+            activeSignals.sort((a,b) => b.streak - a.streak || b.ptnKey.length - a.ptnKey.length);
+            const t1 = activeSignals[0];
+            processBox('top1', t1.play, lastActual, t1.lag);
+
+            // Consensus: All active signals voting
+            let votes = {A:0, B:0}; 
+            activeSignals.forEach(s => votes[s.play]++);
+            let winner = votes.A >= votes.B ? 'A' : 'B';
+            let conf = Math.round((votes[winner] / activeSignals.length) * 100);
+            processBox('cons', winner, lastActual, uniquePatternsMatched.size, { 
+                conf, 
+                active: activeSignals.length 
+            });
+
+            // Top 3 Streaks: Aggregate the streaks of the top 3
+            let t3 = activeSignals.slice(0, 3);
+            let v3 = {A:0, B:0}, aggS = 0;
+            t3.forEach(s => { v3[s.play]++; aggS += s.streak; });
+            processBox('streak', v3.A >= v3.B ? 'A' : 'B', lastActual, aggS);
         }
     }
 
     function getPrediction(data, lag, pChar) {
         let matchChar = data[data.length - lag];
+        // If pattern expects 'A' (Same), predict what was at index [length-lag]
+        // If pattern expects 'B' (Change), predict opposite of [length-lag]
         return (pChar === 'A') ? matchChar : (matchChar === 'A' ? 'B' : 'A');
     }
 
@@ -289,106 +315,115 @@
         return count;
     }
 
-    // --- PHASE 4: AGGREGATION & CONTINUOUS PNL ---
-    function updateDashboard(signals, actualResult) {
-        // TOP 1 (Longest Streak Lock)
-        signals.sort((a,b) => b.streak - a.streak);
-        const t1 = signals[0];
-        processBox('top1', t1.play, actualResult, t1.lag);
-
-        // CONSENSUS (All Matched Patterns)
-        let cVotes = {A:0, B:0}, uniquePatterns = new Set();
-        signals.forEach(s => { cVotes[s.play]++; uniquePatterns.add(s.ptn); });
-        let cPlay = cVotes.A >= cVotes.B ? 'A' : 'B';
-        processBox('cons', cPlay, actualResult, signals.length);
-        document.getElementById('t-cons').innerText = uniquePatterns.size;
-
-        // TOP 3 AGGREGATE
-        let top3 = signals.slice(0, 3);
-        let sVotes = {A:0, B:0}, aggS = 0;
-        top3.forEach(s => { sVotes[s.play]++; aggS += s.streak; });
-        processBox('streak', sVotes.A >= sVotes.B ? 'A' : 'B', actualResult, top3[0].lag);
-        document.getElementById('s-streak').innerText = aggS;
-    }
-
-    function processBox(id, prediction, actual, metaVal) {
+    function processBox(id, prediction, actual, metaVal, extra = null) {
         let st = globalStats[id];
         
-        // PNL Logic: Compare previous turn's prediction with current actual entry
+        // Accurate PnL update: Only update if we had a prediction for the previous result
         if(st.lastPred !== null) {
-            let lastPNL = st.pnl[st.pnl.length-1];
-            if(st.lastPred === actual) {
-                st.w++;
-                st.pnl.push(lastPNL + 1);
-            } else {
-                st.b++;
-                st.pnl.push(lastPNL - 1);
+            let curPNL = st.pnl[st.pnl.length-1];
+            if(st.lastPred === actual) { 
+                st.w++; 
+                st.pnl.push(curPNL + 1); 
+            } else { 
+                st.b++; 
+                st.pnl.push(curPNL - 1); 
             }
+            st.peak = Math.max(st.peak, Math.abs(st.pnl[st.pnl.length-1]));
         }
-        
-        // Store current prediction for next cycle evaluation
         st.lastPred = prediction;
-        st.lastLag = metaVal;
 
-        // UI Update
+        // UI Updates
         const sigEl = document.getElementById(`v-${id}`);
         sigEl.innerText = prediction;
         sigEl.style.color = (prediction === 'A') ? 'var(--up)' : 'var(--down)';
         
-        if(id === 'top1') document.getElementById('l-top1').innerText = metaVal;
-        
         document.getElementById(`w-${id}`).innerText = st.w;
         document.getElementById(`b-${id}`).innerText = st.b;
-        document.getElementById(`${id==='cons'?'tr':'p'}-${id}`).innerText = st.pnl[st.pnl.length-1];
+        
+        // Detail Handling
+        if(id === 'top1') {
+            document.getElementById('l-top1').innerText = metaVal;
+            document.getElementById('p-top1').innerText = st.pnl[st.pnl.length-1];
+        } else if(id === 'cons') {
+            document.getElementById('t-cons').innerText = metaVal; // Unique types
+            document.getElementById('tr-cons').innerText = st.pnl[st.pnl.length-1]; // Trend
+            if(extra) {
+                document.getElementById('conf-cons').innerText = extra.conf + "%";
+                document.getElementById('a-cons').innerText = extra.active;
+                document.getElementById('m-cons').innerText = st.peak; // Use peak here as in Oldsp1
+            }
+        } else if(id === 'streak') {
+            document.getElementById('s-streak').innerText = metaVal;
+            document.getElementById('p-streak').innerText = st.pnl[st.pnl.length-1];
+        }
         
         drawGraph(id, st.pnl);
     }
 
     function drawGraph(id, history) {
         const poly = document.querySelector(`#g-${id} polyline`);
-        const slice = history.slice(-300); // Keep visual length manageable
-        const maxAbs = Math.max(...slice.map(Math.abs), 5);
-        const scale = 40 / maxAbs;
+        const slice = history.slice(-60); // Viewport of last 60 steps
+        
+        const maxV = Math.max(...slice);
+        const minV = Math.min(...slice);
+        const absRange = Math.max(Math.abs(maxV), Math.abs(minV), 5); 
+        const scale = 45 / absRange;
 
-        let maxV = -Infinity, minV = Infinity, maxI = 0, minI = 0;
+        let pkV = -Infinity, lwV = Infinity, pkI = 0, lwI = 0;
 
         const points = slice.map((v, i) => {
-            const x = i * 10;
+            const x = i * (600 / (slice.length - 1 || 1));
             const y = 50 - (v * scale);
-            if(v > maxV) { maxV = v; maxI = i; }
-            if(v < minV) { minV = v; minI = i; }
+            if(v > pkV) { pkV = v; pkI = i; }
+            if(v < lwV) { lwV = v; lwI = i; }
             return `${x},${y}`;
         }).join(' ');
 
         poly.setAttribute('points', points);
-        
-        // Dynamic labels on graph
+
+        // Update Labels
         const pk = document.getElementById(`peak-${id}`);
         const lw = document.getElementById(`low-${id}`);
-        if(pk) { pk.setAttribute('x', maxI*10); pk.setAttribute('y', 50 - (maxV*scale) - 5); pk.textContent = maxV; }
-        if(lw) { lw.setAttribute('x', minI*10); lw.setAttribute('y', 50 - (minV*scale) + 12); lw.textContent = minV; }
-
-        const wrap = poly.closest('.graph-wrap');
-        wrap.scrollLeft = wrap.scrollWidth;
+        if(pk) { 
+            pk.setAttribute('x', pkI * (600 / (slice.length - 1 || 1))); 
+            pk.setAttribute('y', 50 - (pkV * scale) - 5); 
+            pk.textContent = pkV; 
+        }
+        if(lw) { 
+            lw.setAttribute('x', lwI * (600 / (slice.length - 1 || 1))); 
+            lw.setAttribute('y', 50 - (lwV * scale) + 12); 
+            lw.textContent = lwV; 
+        }
     }
 
     function setCol(n) { 
         currentCol = n; 
         document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('btn' + n).classList.add('active');
+        // Reset local locks when switching streams to prevent cross-contamination
+        activeLocks = {};
         refresh(); 
     }
 
     function init() {
         let barHtml = ""; 
-        for(let i=1; i<=7; i++) barHtml += `<button class="col-btn ${i===1?'active':''}" onclick="setCol(${i})" id="btn${i}">STRM ${i}</button>`;
+        for(let i=1; i<=7; i++) {
+            barHtml += `<button class="col-btn ${i===1?'active':''}" onclick="setCol(${i})" id="btn${i}">STRM ${i}</button>`;
+        }
         document.getElementById('colBar').innerHTML = barHtml;
         
-        setInterval(refresh, 2500); 
-    }
+        // Listen for storage updates (from the data-entry file)
+        window.addEventListener('storage', (e) => { 
+            if(e.key === 'phinix_stream') refresh(); 
+        });
 
+        // Also run periodic check in case of missed storage events
+        setInterval(refresh, 3000); 
+        refresh();
+    }
+    
     init();
 </script>
-   <script src="nav.js"></script>
+<script src="nav.js"></script>
 </body>
 </html>
