@@ -46,7 +46,6 @@
 
 <script>
     let currentCol = 1;
-    // Updated to exactly 10 default lags
     let lags = [1, 2, 3, 4, 5, 8, 10, 12, 15, 20];
 
     function init() {
@@ -58,6 +57,7 @@
         
         renderMatrix();
 
+        // Listen for data updates from index.html
         window.addEventListener('storage', (e) => {
             if (e.key === 'phinix_stream') renderMatrix();
         });
@@ -74,8 +74,7 @@
         lags[index] = parseInt(val) || 1;
         renderMatrix();
     }
-
-    function renderMatrix() {
+       function renderMatrix() {
         const streams = JSON.parse(localStorage.getItem('phinix_stream')) || {};
         const data = (streams[currentCol] || "").split('');
         const matrixContainer = document.getElementById('matrix');
@@ -83,8 +82,8 @@
         
         let html = "";
         let footerHtml = "";
+        const totalRows = data.length;
 
-        // Loop limited to 10
         for (let j = 0; j < 10; j++) {
             const currentLag = lags[j];
             let colHtml = `<div class="rel-col">
@@ -92,20 +91,30 @@
                     <input type="number" class="lag-input" value="${currentLag}" onchange="updateLag(${j}, this.value)">
                 </div>`;
             
-            let lastResult = "";
+            // --- ALIGNMENT LOGIC ---
+            // Calculate padding so the latest result is at the very bottom
+            const resultCount = Math.max(0, totalRows - currentLag);
+            const paddingNeeded = totalRows - resultCount;
 
-            for (let i = currentLag; i < data.length; i++) {
+            // Add top spacers
+            for (let e = 0; e < paddingNeeded; e++) {
+                colHtml += `<div class="cell" style="opacity: 0.2; color: #333;">-</div>`;
+            }
+
+            // Render Match (A) or Miss (B)
+            for (let i = currentLag; i < totalRows; i++) {
                 const isMatch = data[i] === data[i - currentLag];
-                lastResult = isMatch ? 'A' : 'B'; 
-                colHtml += `<div class="cell ${isMatch ? 'm' : 'x'}">${lastResult}</div>`;
+                const resultText = isMatch ? 'A' : 'B'; 
+                colHtml += `<div class="cell ${isMatch ? 'm' : 'x'}">${resultText}</div>`;
             }
 
             colHtml += `</div>`;
             html += colHtml;
 
+            // Update Footer Signals
             let nextMatchChar = "?";
-            if (data.length >= currentLag) {
-                nextMatchChar = data[data.length - currentLag];
+            if (totalRows >= currentLag) {
+                nextMatchChar = data[totalRows - currentLag];
             }
             
             footerHtml += `
@@ -119,7 +128,7 @@
         matrixContainer.innerHTML = html;
         footerContainer.innerHTML = footerHtml;
         
-        // Auto-scroll to latest
+        // Auto-scroll to ensure the aligned bottom is visible
         window.scrollTo(0, document.body.scrollHeight);
     }
 
